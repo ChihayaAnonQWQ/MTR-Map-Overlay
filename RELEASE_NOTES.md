@@ -1,3 +1,23 @@
+# v1.5.1 Pre-release Notes (2026-09-28)
+
+Compared with [v1.5.0](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.0), this pre-release fixes NeoForge Dedicated Server startup:
+
+- **Dedicated Server crash fixed.** Common Setup no longer loads JourneyMap or other client-only classes. Client ticks, login/logout events and commands are registered from a physical-client-only mod entry point.
+- **Network side isolation.** Client payload handlers and transport checks moved out of the common NeoForge network registrar. Fabric retains its loader-specific client transport adapter; the snapshot protocol remains v5.
+- **Verification.** Both loader builds and NeoForge tests passed. A NeoForge Dedicated Server with MTR and Xaero reached `Done`, while a NeoForge client in TestWorld initialized JourneyMap and applied a snapshot containing 2 routes, 5 rails and 6 landmarks; 4 JourneyMap markers synced without errors. Fullscreen map visuals and cross-machine play still require manual verification.
+
+Minecraft 1.21.1 and MTR 4.1.0-beta.2 requirements are unchanged. Install only the JAR for your loader. For a whole-network view, install the matching JAR on both client and server.
+
+[Full diff: v1.5.0...v1.5.1](https://github.com/teamCreating/MTR-Map-Overlay/compare/v1.5.0...v1.5.1)
+
+## 中文摘要
+
+相较 [v1.5.0](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.0)，此预发布版修复 NeoForge Dedicated Server 启动时加载 `ClientLevel` 导致的崩溃。通用入口不再加载 JourneyMap 等纯客户端类；客户端事件、命令和网络回调移至客户端专用入口。Fabric 保留对应的平台适配，网络快照协议仍为 v5。
+
+NeoForge、Fabric 构建及 NeoForge 测试通过；NeoForge Dedicated Server 已启动至 `Done`。TestWorld 客户端已初始化 JourneyMap、应用含 2 条路线/5 段轨道/6 个地标的快照，并同步 4 个标记且无失败。全屏地图视觉效果和跨机器联机仍需手动验证。Minecraft 1.21.1 与 MTR 4.1.0-beta.2 要求不变；全网视图需客户端和服务端都安装对应加载器的 JAR。
+
+---
+
 # v1.5.0 Release Notes (2026-09-25)
 
 Compared with the previous official release, [v1.4.6](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.4.6):

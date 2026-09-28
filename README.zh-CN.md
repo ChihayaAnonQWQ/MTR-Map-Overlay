@@ -5,7 +5,7 @@
 
   <p>在地图上查看 Minecraft Transit Railway 的路线、轨道和车站。</p>
 
-  <p><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.0">下载 v1.5.0</a></p>
+  <p><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1">试用 v1.5.1 预发布版</a></p>
 </div>
 
 MTR Map Overlay 是适用于 **Minecraft 1.21.1 NeoForge 或 Fabric** 的地图扩展。它读取 [Minecraft Transit Railway（MTR）](https://github.com/Minecraft-Transit-Railway/Minecraft-Transit-Railway) 的数据，绘制到 Xaero's World Map 和 JourneyMap；不依赖 MTR Surveyor 的地图。
@@ -31,12 +31,12 @@ MTR Map Overlay 是适用于 **Minecraft 1.21.1 NeoForge 或 Fabric** 的地图�
 | 地图 mod | 与加载器对应的 Xaero's World Map 1.45.0+ 和/或 JourneyMap 6.0.8+ |
 | Xaero's Minimap | 可选；只用于清理旧版本创建的 `[MTR]` 路标 |
 
-1. 从 [Releases](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.0) 下载与你的加载器对应的 **NeoForge 或 Fabric JAR**，放入客户端 `mods` 目录。**不要同时安装两个版本。**
+1. 如需测试预发布版，从 [v1.5.1](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1) 下载与你的加载器对应的 **NeoForge 或 Fabric JAR**，放入客户端 `mods` 目录。**不要同时安装两个版本。**上一稳定版为 [v1.5.0](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.0)。
 2. 安装同一加载器的 MTR 和所需地图 mod；Fabric 还必须安装 Fabric API。
 3. 如需全网地图，可选地在服务器安装对应加载器版本的 MTR Map Overlay 和 MTR。客户端与服务端都必须使用新的 `mtrmap` mod ID；旧的 `mtrsurveyor` 版本与本版不兼容。
 4. 打开 Xaero's World Map 或 JourneyMap 全屏地图。两端使用配套的 `ROUTES`、`TRACKS` 图标：左侧亮条绿色表示开、红色表示关；JourneyMap 的按钮位于附加按钮栏。`/mtrmap config routeLines` 和 `trackLines` 也对两种地图生效。悬停在线路或图标上可查看详情。
 
-纯客户端使用不要求服务端安装。本版 NeoForge、Fabric 构建与共用的无头测试已检查；Fabric 地图绘制及跨机器联机仍需游戏内验证，详见[发布说明](RELEASE_NOTES.md)。
+纯客户端使用不要求服务端安装。v1.5.1 已隔离 NeoForge 的纯客户端初始化，使 Dedicated Server 可以安装并启动本 mod。此预发布版的 NeoForge、Fabric 构建与共用无头测试已检查；JourneyMap 全屏绘制、Fabric 地图绘制及跨机器联机仍需游戏内验证，详见[发布说明](RELEASE_NOTES.md)。
 
 ## 命令与配置
 
@@ -63,14 +63,14 @@ NeoForge 配置位于 `config/mtrmap.toml`；如果新配置不存在，首次�
 
 | 加载器 | Windows | macOS / Linux | 产物 |
 | --- | --- | --- | --- |
-| NeoForge | `.\gradlew.bat build` | `./gradlew build` | `build/libs/CRTools-MTR-Map-Overlay-1.5.0.jar` |
-| Fabric | `.\fabric\gradlew.bat -p fabric build` | `./fabric/gradlew -p fabric build` | `fabric/build/libs/CRTools-MTR-Map-Overlay-fabric-1.5.0.jar` |
+| NeoForge | `.\gradlew.bat build` | `./gradlew build` | `build/libs/CRTools-MTR-Map-Overlay-1.5.1.jar` |
+| Fabric | `.\fabric\gradlew.bat -p fabric build` | `./fabric/gradlew -p fabric build` | `fabric/build/libs/CRTools-MTR-Map-Overlay-fabric-1.5.1.jar` |
 
 NeoForge 构建会运行共用的 JUnit 测试。构建成功不能替代游戏内兼容性验证，尤其是 Xaero 更新内部地图渲染实现之后。
 
 ## 源码结构与数据流
 
-NeoForge 源码在 [`src/main/java/com/lx862/mtrmap`](src/main/java/com/lx862/mtrmap)；[`fabric/`](fabric) 放置 Fabric 专用入口和适配代码，并编译共用的 Java 源码。两种构建共用纹理、128×128 模组/资源包 Logo 与 `mtrmap` 标识。
+NeoForge 源码在 [`src/main/java/com/lx862/mtrmap`](src/main/java/com/lx862/mtrmap)；[`fabric/`](fabric) 放置 Fabric 专用入口和适配代码，并编译共用的 Java 源码。NeoForge 的 `MTRMap` 只负责通用初始化，`MTRMapClient` 注册纯客户端事件，`MTRNetworkClient` 承接客户端网络回调。两种构建共用纹理、128×128 模组/资源包 Logo 与 `mtrmap` 标识。
 
 | 模块 | 主要职责 |
 | --- | --- |

@@ -5,7 +5,7 @@
 
   <p>Minecraft Transit Railway routes, rails and stations on your map.</p>
 
-  <p><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.0">Download v1.5.0</a></p>
+  <p><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1">Test v1.5.1 pre-release</a></p>
 </div>
 
 MTR Map Overlay is a Minecraft 1.21.1 add-on for **NeoForge or Fabric**. It reads [Minecraft Transit Railway (MTR)](https://github.com/Minecraft-Transit-Railway/Minecraft-Transit-Railway) data and integrates with Xaero's World Map and JourneyMap. It does not depend on MTR Surveyor's map.
@@ -31,12 +31,12 @@ When the mod is installed on the server as well as the client, it can request a 
 | Map mod | Xaero's World Map 1.45.0+ and/or JourneyMap 6.0.8+ for the respective loader |
 | Xaero's Minimap | Optional; used only to remove old `[MTR]` waypoints created by earlier releases |
 
-1. Download the **NeoForge** or **Fabric** JAR from [Releases](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.0). Install **one**, not both, in the client's `mods` directory.
+1. For pre-release testing, download the **NeoForge** or **Fabric** JAR from [v1.5.1](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1). Install **one**, not both, in the client's `mods` directory. The last stable release is [v1.5.0](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.0).
 2. Install MTR and your chosen map mod for that same loader. Fabric additionally needs Fabric API.
 3. Optionally install the matching MTR Map Overlay JAR and MTR on the server to enable the whole-network view. Client and server must use the `mtrmap` mod ID; older `mtrsurveyor` builds are not compatible with this release.
 4. Open Xaero's World Map or JourneyMap's fullscreen map. Both maps have matching `ROUTES` and `TRACKS` icons (green left bar = on, red = off); JourneyMap puts them in its add-on button panel. The `/mtrmap config routeLines` and `trackLines` switches apply to both maps. Hover over a line or icon for details.
 
-The server component is not required for client-only use. NeoForge and Fabric builds and the shared headless tests are checked for this release; Fabric map rendering and cross-machine network behaviour still need in-game validation. See [release notes](RELEASE_NOTES.md).
+The server component is not required for client-only use. v1.5.1 isolates NeoForge's client-only initialization so a Dedicated Server can start with the mod installed. NeoForge and Fabric builds and the shared headless tests are checked for this pre-release; JourneyMap fullscreen rendering, Fabric map rendering, and cross-machine network behaviour still need in-game validation. See [release notes](RELEASE_NOTES.md).
 
 ## Commands and configuration
 
@@ -63,14 +63,14 @@ Use a Java 21 toolchain. The loader builds have separate Gradle wrappers because
 
 | Loader | Windows | macOS / Linux | Output |
 | --- | --- | --- | --- |
-| NeoForge | `.\gradlew.bat build` | `./gradlew build` | `build/libs/CRTools-MTR-Map-Overlay-1.5.0.jar` |
-| Fabric | `.\fabric\gradlew.bat -p fabric build` | `./fabric/gradlew -p fabric build` | `fabric/build/libs/CRTools-MTR-Map-Overlay-fabric-1.5.0.jar` |
+| NeoForge | `.\gradlew.bat build` | `./gradlew build` | `build/libs/CRTools-MTR-Map-Overlay-1.5.1.jar` |
+| Fabric | `.\fabric\gradlew.bat -p fabric build` | `./fabric/gradlew -p fabric build` | `fabric/build/libs/CRTools-MTR-Map-Overlay-fabric-1.5.1.jar` |
 
 The NeoForge build runs the shared JUnit tests. A successful build does not replace an in-game compatibility check, especially when Xaero's internal map renderer changes.
 
 ## Source guide
 
-The NeoForge sources are under [`src/main/java/com/lx862/mtrmap`](src/main/java/com/lx862/mtrmap); [`fabric/`](fabric) contains Fabric-specific entry points and adapters and compiles the shared Java sources. The two builds share textures, the 128×128 mod/pack logo, and the same `mtrmap` identity.
+The NeoForge sources are under [`src/main/java/com/lx862/mtrmap`](src/main/java/com/lx862/mtrmap); [`fabric/`](fabric) contains Fabric-specific entry points and adapters and compiles the shared Java sources. NeoForge keeps common initialization in `MTRMap` and physical-client events in `MTRMapClient`; `MTRNetworkClient` holds client-only transport callbacks. The two builds share textures, the 128×128 mod/pack logo, and the same `mtrmap` identity.
 
 | Area | Main responsibility |
 | --- | --- |
