@@ -54,12 +54,12 @@ public final class ClientNetworkSync {
             return;
         }
         try {
-            if (!MTRNetwork.canSendToServer()) {
+            if (!MTRNetworkClient.canSendToServer()) {
                 // The remote server has not registered this mod's payloads.
                 markServerUnsupported();
                 return;
             }
-            MTRNetwork.sendToServer(new RequestNetworkSync(dimensionFilter));
+            MTRNetworkClient.sendToServer(new RequestNetworkSync(dimensionFilter));
             if (MTRMapConfig.INSTANCE.debugLog.get()) {
                 MTRMap.LOGGER.info("[MTRMap] Requested full-network snapshot ({}, filter={})",
                         trigger, dimensionFilter);
@@ -74,11 +74,11 @@ public final class ClientNetworkSync {
     /** Ask the server for per-dimension content hashes (cheap hot-update probe). */
     private static void requestProbe() {
         try {
-            if (!MTRNetwork.canSendToServer()) {
+            if (!MTRNetworkClient.canSendToServer()) {
                 markServerUnsupported();
                 return;
             }
-            MTRNetwork.sendToServer(NetworkSyncProbe.INSTANCE);
+            MTRNetworkClient.sendToServer(NetworkSyncProbe.INSTANCE);
             lastProbeMillis = System.currentTimeMillis();
             if (MTRMapConfig.INSTANCE.debugLog.get()) {
                 MTRMap.LOGGER.info("[MTRMap] Sent network probe");

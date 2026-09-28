@@ -44,8 +44,10 @@ sourceSets.main.resources.exclude('META-INF/neoforge.mods.toml', 'mtrmap.mixins.
 
 compileJava.source(fileTree('../src/main/java') {
     exclude 'com/lx862/mtrmap/MTRMap.java'
+    exclude 'com/lx862/mtrmap/MTRMapClient.java'
     exclude 'com/lx862/mtrmap/config/MTRMapConfig.java'
     exclude 'com/lx862/mtrmap/network/MTRNetwork.java'
+    exclude 'com/lx862/mtrmap/network/MTRNetworkClient.java'
     exclude 'com/lx862/mtrmap/CommandRegistration.java'
     exclude 'com/lx862/mtrmap/mixin/client/ClientCommonListenerAccessor.java'
     exclude 'com/lx862/mtrmap/mixin/client/xaero/XaeroWorldMapMixin.java'
