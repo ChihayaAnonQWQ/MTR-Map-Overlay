@@ -31,6 +31,7 @@ import java.util.Map;
  * <p>Runs as a normal JUnit test but writes into {@code run/saves/TestWorld}.
  * Re-run it whenever the test world needs to be (re)populated.</p>
  */
+@org.junit.jupiter.api.condition.EnabledIfSystemProperty(named = "mtrmap.generateTestWorld", matches = "true")
 class TestWorldGeneratorTest {
 
     private static final Path WORLD_MTR = Path.of("run/saves/TestWorld/mtr");
@@ -106,16 +107,16 @@ class TestWorldGeneratorTest {
         final Angle tb = tangentAt(polyline, seg + 1);
         if (platform) {
             return Rail.newPlatformRail(a, ta, b, tb,
-                    Rail.Shape.QUADRATIC, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    Rail.Shape.QUADRATIC, 0,
                     new ObjectArrayList<>(), TransportMode.TRAIN);
         }
-        return Rail.newRail(a, ta, b, tb, Rail.Shape.QUADRATIC, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        return Rail.newRail(a, ta, b, tb, Rail.Shape.QUADRATIC, 0,
                 new ObjectArrayList<String>(), 1, 2, false, false, true, false, true, TransportMode.TRAIN);
     }
 
     private static Rail makePlatformRail(Position p1, Position p2) {
         final Rail rail = Rail.newPlatformRail(p1, angleOf(p1, p2), p2, angleOf(p2, p1),
-                Rail.Shape.QUADRATIC, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                Rail.Shape.QUADRATIC, 0,
                 new ObjectArrayList<>(), TransportMode.TRAIN);
         if (rail == null || !rail.isValid()) {
             throw new IllegalStateException("platform rail invalid: " + p1 + " -> " + p2);
@@ -125,7 +126,7 @@ class TestWorldGeneratorTest {
 
     private static Rail makeRail(Position p1, Position p2) {
         final Rail rail = Rail.newRail(p1, angleOf(p1, p2), p2, angleOf(p2, p1),
-                Rail.Shape.QUADRATIC, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                Rail.Shape.QUADRATIC, 0,
                 new ObjectArrayList<>(), 1, 2, false, false, true, false, true, TransportMode.TRAIN);
         if (rail == null || !rail.isValid()) {
             throw new IllegalStateException("rail invalid: " + p1 + " -> " + p2);
@@ -186,10 +187,10 @@ class TestWorldGeneratorTest {
         final Position s0 = node(480, 0);
         final Position s1 = node(600, 0);
         final Rail sidingRail = Rail.newSidingRail(s0, tangentAt(polyline, 5), s1, tangentAt(polyline, 6),
-                Rail.Shape.QUADRATIC, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                Rail.Shape.QUADRATIC, 0,
                 new ObjectArrayList<String>(), TransportMode.TRAIN);
         final org.mtr.core.data.Siding siding = new org.mtr.core.data.Siding(s0, s1, 0, TransportMode.TRAIN, simulator);
-        siding.rail = sidingRail;
+
         simulator.sidings.add(siding);
         simulator.rails.add(sidingRail);
 
@@ -221,8 +222,7 @@ class TestWorldGeneratorTest {
         simulator.rails.add(bend);
         simulator.rails.add(railCharlie);
         System.out.println("[TestWorldGenerator] immediately after adds: platforms=" + simulator.platforms.size()
-                + " alpha.isInvalidSavedRail=" + alpha.isInvalidSavedRail()
-                + " alpha.rail=" + (alpha.rail == null ? "NULL" : "ok")
+                + " alpha.isInvalidSavedRail=" + alpha.isInvalidSavedRail(simulator)
                 + " positionsToRailContainsN0=" + simulator.positionsToRail.containsKey(n0));
         simulator.sync();
         System.out.println("[TestWorldGenerator] platform ids: alpha=" + alpha.getId()
@@ -247,19 +247,17 @@ class TestWorldGeneratorTest {
         simulator.positionsToRail.keySet().forEach(k ->
                 System.out.println("[TestWorldGenerator]   key: " + k.getX() + "," + k.getY() + "," + k.getZ()));
         System.out.println("[TestWorldGenerator] pre-sync: platforms=" + simulator.platforms.size()
-                + " alpha.invalid=" + alpha.isInvalidSavedRail()
+                + " alpha.invalid=" + alpha.isInvalidSavedRail(simulator)
                 + " alpha.inSet=" + simulator.platforms.contains(alpha));
         final Object lookup = simulator.positionsToRail.containsKey(n0) ? simulator.positionsToRail.get(n0).get(n1) : null;
         System.out.println("[TestWorldGenerator] alpha serialized: " + alpha);
         System.out.println("[TestWorldGenerator] lookup n0->n1 identity==railAlpha: " + (lookup == railAlpha)
-                + " alpha.rail after sync=" + (alpha.rail == null ? "NULL" : "set")
-                + " alpha.isValid=" + alpha.isValid()
-                + " alpha.railIsPlatform=" + (alpha.rail != null && alpha.rail.isPlatform()));
+                + " alpha.isValid=" + alpha.isValid());
         System.out.println("[TestWorldGenerator] after sync: platforms=" + simulator.platforms.size()
                 + " routes=" + simulator.routes.size() + " rails=" + simulator.rails.size());
         simulator.platforms.forEach(platform -> System.out.println("[TestWorldGenerator]   platform valid="
-                + platform.isValid() + " invalidSavedRail=" + platform.isInvalidSavedRail()
-                + " rail=" + (platform.rail == null ? "null" : platform.rail.isPlatform())));
+                + platform.isValid() + " invalidSavedRail=" + platform.isInvalidSavedRail(simulator)
+                ));
         simulator.save();
         simulator.stop();
         System.out.println("[TestWorldGenerator] world data written to " + WORLD_MTR.toAbsolutePath());
@@ -267,7 +265,7 @@ class TestWorldGeneratorTest {
 
     private static Platform platform(Simulator simulator, Position p1, Position p2, Rail rail, String name) {
         final Platform platform = new Platform(p1, p2, TransportMode.TRAIN, simulator);
-        platform.rail = rail;
+
         final JsonObject json = new JsonObject();
         json.addProperty("name", name);
         json.addProperty("color", 7829367);

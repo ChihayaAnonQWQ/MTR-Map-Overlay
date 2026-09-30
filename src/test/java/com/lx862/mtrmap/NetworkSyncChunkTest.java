@@ -31,13 +31,13 @@ class NetworkSyncChunkTest {
         final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         NetworkSnapshotCodec.writeDimensionList(new DataOutputStream(bytes), List.of(source));
         final var decoded = NetworkSnapshotCodec.readDimensionList(
-                new DataInputStream(new ByteArrayInputStream(bytes.toByteArray()))).getFirst();
+                new DataInputStream(new ByteArrayInputStream(bytes.toByteArray()))).get(0);
 
         assertEquals("minecraft/overworld", decoded.dimensionId);
-        assertEquals(List.of("rail-a"), decoded.routes.getFirst().trackIds);
-        assertEquals("rail-a", decoded.tracks.getFirst().id);
-        assertEquals(MapLandmark.Type.PLATFORM, decoded.landmarks.getFirst().type());
-        assertEquals("Red→Terminus", decoded.landmarks.getFirst().description());
+        assertEquals(List.of("rail-a"), decoded.routes.get(0).trackIds);
+        assertEquals("rail-a", decoded.tracks.get(0).id);
+        assertEquals(MapLandmark.Type.PLATFORM, decoded.landmarks.get(0).type());
+        assertEquals("Red→Terminus", decoded.landmarks.get(0).description());
     }
 
     @Test

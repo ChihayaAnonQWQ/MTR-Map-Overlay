@@ -3,22 +3,23 @@ package com.lx862.mtrmap;
 import com.lx862.mtrmap.integration.journeymap.JourneyMapIntegration;
 import com.lx862.mtrmap.integration.xaero.LegacyXaeroWaypointCleanup;
 import com.lx862.mtrmap.network.ClientNetworkSync;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.ModList;
-import net.neoforged.fml.common.Mod;
-import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.ModList;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.client.event.RegisterClientCommandsEvent;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.api.distmarker.Dist;
 
 /** Physical-client entry point. Never instantiated by a dedicated server. */
-@Mod(value = MTRMap.MOD_ID, dist = Dist.CLIENT)
+
 public final class MTRMapClient {
 
-    public MTRMapClient(IEventBus modEventBus) {
-        NeoForge.EVENT_BUS.register(this);
+    public static void initialize() { new MTRMapClient(); }
+    private MTRMapClient() {
+        MinecraftForge.EVENT_BUS.register(this);
         MTRMap.LOGGER.info("[{}] JourneyMap {} - landmark integration {}",
                 MTRMap.MOD_NAME,
                 JourneyMapIntegration.isJourneyMapLoaded() ? "detected" : "not found",
@@ -36,7 +37,8 @@ public final class MTRMapClient {
     }
 
     @SubscribeEvent
-    public void onClientTick(ClientTickEvent.Post event) {
+    public void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
         ClientNetworkSync.onClientTick();
         if (ModList.get().isLoaded("xaerominimap")) {
             LegacyXaeroWaypointCleanup.onClientTick();

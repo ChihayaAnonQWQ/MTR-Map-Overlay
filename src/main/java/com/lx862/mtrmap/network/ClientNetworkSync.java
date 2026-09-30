@@ -17,9 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * server, reassembles chunked transfers and feeds {@link MapDataCache}.
  *
  * <p>Fully optional - when the server does not run this mod the client falls
- * back to MTR's own radius-limited client data. Requests are only sent over
- * NeoForge connections; payloads are registered as optional so even a
- * NeoForge server without this mod cannot break the client.</p>
+ * back to MTR's own radius-limited client data. The loader transport checks
+ * whether the server advertises our optional channel before sending.</p>
  */
 public final class ClientNetworkSync {
 
@@ -116,7 +115,7 @@ public final class ClientNetworkSync {
             final List<MapDataCache.DimensionData> dimensions =
                     NetworkSnapshotCodec.readDimensionList(new java.io.DataInputStream(
                             new java.io.ByteArrayInputStream(payload)));
-            if (dimensions.size() != 1 || dimensions.getFirst().version != buffer.snapshotHash()) {
+            if (dimensions.size() != 1 || dimensions.get(0).version != buffer.snapshotHash()) {
                 throw new IOException("Snapshot dimension count or hash does not match its chunks");
             }
 

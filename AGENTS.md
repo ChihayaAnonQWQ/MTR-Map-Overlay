@@ -4,6 +4,10 @@
 > 本文件的存在原因：2026-09-16 发生过一起事故——某个 agent 按过时认知把仓库暂存区整体回退到已废弃的
 > Forge 1.20.1 架构（丢弃了整个 NeoForge 移植），险些毁掉两周的工作。以下规则是为了让这种情况不再发生。
 
+## 当前兼容分支例外（2026-09-30，Codex）
+
+本 worktree 为用户明确要求的 `compat/mtr-4.0-mc-1.20` 分支：**Forge/Fabric MC 1.20.1 + MTR 4.0.5，v1.5.2**。从 main v1.5.1 移植，禁止将这里的 Forge 代码覆盖回 main。下文的 NeoForge 1.21.1 平台约束适用于 main；本分支遵循上面的兼容目标。构建 Gradle 用 JDK 21，产物为 Java 17；`gradlew build` 与 `fabric/gradlew -p fabric build` 均运行共用测试。权威状态见 STATE.md，构建/功能说明以本分支 README 为准。
+
 ## 0. 三条铁律（违反 = 事故重演）
 
 1. **平台已定，禁止回退**：本项目须持续支持 **NeoForge 1.21.1 + MTR 4.1.0-beta.2**；另有并行的 Fabric 1.21.1 构建，不能以移植为由移除 NeoForge。

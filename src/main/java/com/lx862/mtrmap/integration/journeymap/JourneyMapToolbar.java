@@ -90,7 +90,7 @@ final class JourneyMapToolbar {
     }
 
     private static ResourceLocation icon(String name) {
-        return ResourceLocation.fromNamespaceAndPath(MTRMap.MOD_ID, "textures/gui/" + name + ".png");
+        return new ResourceLocation(MTRMap.MOD_ID, "textures/gui/" + name + ".png");
     }
 
     private static void updateIcon(IThemeButton button, ResourceLocation icon) {

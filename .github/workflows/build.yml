@@ -13,11 +13,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - loader: neoforge
+          - loader: forge-mc1.20.1
             wrapper: ./gradlew
             build-args: build
             artifact-path: build/libs/*.jar
-          - loader: fabric
+          - loader: fabric-mc1.20.1
             wrapper: ./fabric/gradlew
             build-args: -p fabric build
             artifact-path: fabric/build/libs/*.jar
@@ -32,11 +32,13 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
         with:
-          cache-disabled: ${{ matrix.loader == 'fabric' }}
+          cache-disabled: ${{ matrix.loader == 'fabric-mc1.20.1' }}
       - name: Make Gradle wrapper executable
         run: chmod +x ${{ matrix.wrapper }}
       - name: Build ${{ matrix.loader }}
         run: ${{ matrix.wrapper }} ${{ matrix.build-args }}
+      - name: Verify packaged JAR and tests
+        run: python3 tools/verify_artifacts.py --loader "${{ startsWith(matrix.loader, 'forge') && 'forge' || 'fabric' }}"
       - name: Capture build artifacts
         uses: actions/upload-artifact@v5
         with:

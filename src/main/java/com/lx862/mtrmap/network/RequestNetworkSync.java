@@ -1,8 +1,6 @@
 package com.lx862.mtrmap.network;
 
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 /**
  * C2S: client asks the server for a full-network map snapshot.
@@ -11,20 +9,11 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
  * <p>{@code dimensionFilter} limits the reply to one dimension (used by the
  * hot-update probe flow); {@code null} requests every dimension.</p>
  */
-public record RequestNetworkSync(String dimensionFilter) implements CustomPacketPayload {
+public record RequestNetworkSync(String dimensionFilter) implements MapPacket {
 
     public static final RequestNetworkSync ALL = new RequestNetworkSync(null);
 
-    public static final Type<RequestNetworkSync> TYPE =
-            new Type<>(MTRNetwork.id("request_network_sync"));
 
-    public static final StreamCodec<FriendlyByteBuf, RequestNetworkSync> STREAM_CODEC =
-            StreamCodec.of(RequestNetworkSync::write, RequestNetworkSync::read);
-
-    @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
-    }
 
     public static void write(FriendlyByteBuf buf, RequestNetworkSync msg) {
         buf.writeBoolean(msg.dimensionFilter != null);

@@ -10,8 +10,8 @@ import org.mtr.core.data.Route;
 import org.mtr.core.data.Station;
 import org.mtr.core.data.Depot;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import org.mtr.client.MinecraftClientData;
-import org.mtr.data.VehicleExtension;
+import org.mtr.mod.client.MinecraftClientData;
+import org.mtr.mod.data.VehicleExtension;
 
 import java.util.ArrayList;
 import java.util.HashMap;

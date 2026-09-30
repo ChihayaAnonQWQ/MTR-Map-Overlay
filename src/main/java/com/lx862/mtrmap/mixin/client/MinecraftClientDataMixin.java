@@ -3,7 +3,7 @@ package com.lx862.mtrmap.mixin.client;
 import com.lx862.mtrmap.MTRMap;
 import com.lx862.mtrmap.integration.journeymap.JourneyMapIntegration;
 import com.lx862.mtrmap.mapdata.MapDataCache;
-import org.mtr.client.MinecraftClientData;
+import org.mtr.mod.client.MinecraftClientData;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;

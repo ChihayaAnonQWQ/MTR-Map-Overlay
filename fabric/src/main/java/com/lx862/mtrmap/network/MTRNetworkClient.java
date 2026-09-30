@@ -1,6 +1,6 @@
 package com.lx862.mtrmap.network;
 
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+
 
 /** Fabric counterpart for the shared client snapshot requester. */
 public final class MTRNetworkClient {
@@ -12,7 +12,7 @@ public final class MTRNetworkClient {
         return MTRNetwork.canSendToServer();
     }
 
-    public static void sendToServer(CustomPacketPayload payload) {
+    public static void sendToServer(MapPacket payload) {
         MTRNetwork.sendToServer(payload);
     }
 }

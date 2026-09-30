@@ -1,8 +1,6 @@
 package com.lx862.mtrmap.network;
 
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 
 /**
@@ -10,18 +8,9 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
  * of a self-describing binary dump; the last chunk triggers reassembly.
  */
 public record NetworkSyncChunk(int transferId, short chunkIndex, short totalChunks, long snapshotHash, byte[] data)
-        implements CustomPacketPayload {
+        implements MapPacket {
 
-    public static final Type<NetworkSyncChunk> TYPE =
-            new Type<>(MTRNetwork.id("network_sync_chunk"));
 
-    public static final StreamCodec<FriendlyByteBuf, NetworkSyncChunk> STREAM_CODEC =
-            StreamCodec.of(NetworkSyncChunk::write, NetworkSyncChunk::read);
-
-    @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
-    }
 
     public static void write(FriendlyByteBuf buf, NetworkSyncChunk msg) {
         buf.writeVarInt(msg.transferId());
@@ -36,7 +25,7 @@ public record NetworkSyncChunk(int transferId, short chunkIndex, short totalChun
         final short chunkIndex = buf.readShort();
         final short totalChunks = buf.readShort();
         final long snapshotHash = buf.readLong();
-        final byte[] data = buf.readByteArray();
+        final byte[] data = buf.readByteArray(NetworkChunkAssembler.CHUNK_SIZE);
         return new NetworkSyncChunk(transferId, chunkIndex, totalChunks, snapshotHash, data);
     }
 

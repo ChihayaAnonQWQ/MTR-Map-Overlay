@@ -5,14 +5,14 @@ import com.lx862.mtrmap.MTRMap;
 import com.lx862.mtrmap.config.MTRMapConfig;
 import com.lx862.mtrmap.mapdata.MapDataCache;
 import com.lx862.mtrmap.mapdata.MapLandmark;
-import journeymap.api.v2.client.display.Context;
+import journeymap.api.v2.common.Context;
 import journeymap.api.v2.client.IClientAPI;
 import journeymap.api.v2.client.display.MarkerOverlay;
 import journeymap.api.v2.client.model.MapImage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
-import org.mtr.client.MinecraftClientData;
+import org.mtr.mod.client.MinecraftClientData;
 import org.mtr.core.data.Depot;
 import org.mtr.core.data.NameColorDataBase;
 import org.mtr.core.data.Platform;
@@ -21,7 +21,7 @@ import org.mtr.core.data.Route;
 import org.mtr.core.data.RoutePlatformData;
 import org.mtr.core.data.Station;
 import org.mtr.core.data.TransportMode;
-import org.mtr.data.IGui;
+import org.mtr.mod.data.IGui;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -394,7 +394,7 @@ final class JourneyMapLandmarkManager {
 
     private static ResourceLocation markerIcon(String modeName, boolean isDepot) {
         String type = isDepot ? "depot" : "station";
-        return ResourceLocation.fromNamespaceAndPath(MTRMap.MOD_ID,
+        return new ResourceLocation(MTRMap.MOD_ID,
                 "textures/atlas/marker/" + modeName + "_" + type + ".png");
     }
 

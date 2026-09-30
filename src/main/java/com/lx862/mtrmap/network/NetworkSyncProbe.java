@@ -1,8 +1,6 @@
 package com.lx862.mtrmap.network;
 
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 /**
  * C2S: lightweight change-detection probe. The server replies with a
@@ -11,19 +9,12 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
  * makes periodic hot-update polling cost O(network size) on the server with
  * no transfer when nothing changed.
  */
-public record NetworkSyncProbe() implements CustomPacketPayload {
+public record NetworkSyncProbe() implements MapPacket {
 
     public static final NetworkSyncProbe INSTANCE = new NetworkSyncProbe();
 
-    public static final Type<NetworkSyncProbe> TYPE =
-            new Type<>(MTRNetwork.id("network_sync_probe"));
 
-    public static final StreamCodec<FriendlyByteBuf, NetworkSyncProbe> STREAM_CODEC =
-            StreamCodec.unit(INSTANCE);
 
-    @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
-    }
-
+    public static void write(FriendlyByteBuf buf, NetworkSyncProbe msg) {}
+    public static NetworkSyncProbe read(FriendlyByteBuf buf) { return INSTANCE; }
 }

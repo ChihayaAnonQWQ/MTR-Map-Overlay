@@ -1,0 +1,42 @@
+// JourneyMap 6 on MC 1.20.1 publishes its v2 API inside the mod JAR.
+// Extract that exact API as a compile-only local Maven artifact so ForgeGradle
+// and Loom can remap it. Never package JourneyMap or its API in our output.
+def apiVersion = "1.20.1-6.0.6-${journeyMapLoader}"
+def repoRoot = layout.projectDirectory.dir('.gradle/bundled-api').asFile
+def artifactDir = new File(repoRoot, "bundled/journeymap/api/${apiVersion}")
+def apiJar = new File(artifactDir, "api-${apiVersion}.jar")
+repositories { maven { url = repoRoot.toURI() } }
+dependencies {
+    if (journeyMapLoader == 'forge') compileOnly fg.deobf("bundled.journeymap:api:${apiVersion}")
+    else modCompileOnly "bundled.journeymap:api:${apiVersion}"
+}
+
+if (!apiJar.exists()) {
+    artifactDir.mkdirs()
+    // Do not resolve a Gradle configuration here: Loom finalizes its remapped
+    // repository later and cannot mutate it after an early resolution.
+    def sha1 = journeyMapLoader == 'forge' ? 'a3d9009272c0e22d6057a7e5fbed1bfa17a4dea7' : 'ca50b1088522eaab0090df1dd1082d95dfd849b5'
+    def versionId = journeyMapLoader == 'forge' ? 'gryqmTt2' : '9Msq5MJs'
+    def bundle = new File(gradle.gradleUserHomeDir, "caches/modules-2/files-2.1/maven.modrinth/journeymap/1.20.1-6.0.6+${journeyMapLoader}/${sha1}/journeymap-1.20.1-6.0.6+${journeyMapLoader}.jar")
+    if (!bundle.exists()) {
+        bundle = new File(artifactDir, 'journeymap-bundle.jar')
+        def connection = new URI("https://cdn.modrinth.com/data/lfHFW1mp/versions/${versionId}/journeymap-${journeyMapLoader}-1.20.1-6.0.6.jar").toURL().openConnection()
+        connection.connectTimeout = 30000
+        connection.readTimeout = 60000
+        connection.getInputStream().withCloseable { input -> bundle.withOutputStream { it << input } }
+    }
+    def digest = java.security.MessageDigest.getInstance('SHA-1')
+    bundle.withInputStream { input ->
+        byte[] buffer = new byte[8192]
+        int length
+        while ((length = input.read(buffer)) != -1) digest.update(buffer, 0, length)
+    }
+    if (digest.digest().encodeHex().toString() != sha1) throw new GradleException('JourneyMap bundle checksum mismatch')
+    new java.util.zip.ZipFile(bundle).withCloseable { zip ->
+        def entry = zip.entries().find { it.name.contains('/journeymap-api-') && it.name.endsWith('.jar') }
+        if (entry == null) throw new GradleException('JourneyMap bundle contains no API JAR')
+        zip.getInputStream(entry).withCloseable { input -> apiJar.withOutputStream { it << input } }
+    }
+    new File(artifactDir, "api-${apiVersion}.pom").text = """<project><modelVersion>4.0.0</modelVersion><groupId>bundled.journeymap</groupId><artifactId>api</artifactId><version>${apiVersion}</version></project>"""
+}
+

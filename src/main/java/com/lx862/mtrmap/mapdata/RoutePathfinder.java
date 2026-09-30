@@ -18,8 +18,8 @@ import java.util.Set;
  *
  * <p>Builds a node graph from the rail set (rail node positions as graph
  * nodes, rails as weighted edges), anchors each platform to its own platform
- * rail (the {@code rail} reference carried by the platform, with a proximity
- * fallback), and runs a multi-source Dijkstra between consecutive platforms
+ * rail (matching its endpoints, with a proximity fallback), and runs a
+ * multi-source Dijkstra between consecutive platforms
  * so route lines follow the real track geometry (arcs included) instead of
  * straight stop-to-stop lines.</p>
  *
@@ -305,17 +305,15 @@ public final class RoutePathfinder {
     }
 
     /**
-     * Resolve the platform's anchor rail. Prefers the live {@code rail}
-     * reference carried by the platform; falls back to the nearest
+     * Resolve the platform's anchor rail. Prefers its exact endpoint pair;
+     * falls back to the nearest
      * platform-type rail in the graph.
      */
     static Rail getPlatformRail(Graph graph, Platform platform) {
-        try {
-            final Rail liveRail = platform.rail;
-            if (liveRail != null && liveRail.isValid() && graph.railById.containsKey(liveRail.getHexId())) {
-                return liveRail;
-            }
-        } catch (Throwable ignored) {
+        // MTR 4.0 platforms retain endpoints, rather than a live rail field.
+        for (Rail rail : graph.railById.values()) {
+            Position[] ends = graph.railEnds.get(rail.getHexId());
+            if (ends != null && platform.containsPos(ends[0]) && platform.containsPos(ends[1])) return rail;
         }
 
         // Fallback: nearest platform-type rail to the platform's mid position

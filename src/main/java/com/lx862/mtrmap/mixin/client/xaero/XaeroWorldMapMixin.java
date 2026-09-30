@@ -16,8 +16,8 @@ import xaero.map.gui.GuiMap;
  * (route lines & track geometry) on the map.
  * Modelled after Create mod's XaeroFullscreenMapMixin.
  *
- * <p>On NeoForge the runtime uses Mojang mappings, so both GuiMap.render and
- * GuiGraphics.blit are referenced by their mapped names.</p>
+ * <p>Forge 1.20.1 uses SRG names for inherited Screen methods at runtime.
+ * Both dev and production names are accepted; custom Xaero fields are not remapped.</p>
  */
 @Mixin(value = GuiMap.class, remap = false)
 public abstract class XaeroWorldMapMixin {
@@ -25,7 +25,7 @@ public abstract class XaeroWorldMapMixin {
     @Unique
     private boolean mtrmap$failedToRender = false;
 
-    @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;IIF)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;blit(Lnet/minecraft/resources/ResourceLocation;IIIIII)V"), remap = false, require = 0)
+    @Inject(method = {"render", "m_88315_"}, at = @At("TAIL"), remap = false, require = 0)
     public void mtrmap$onRenderTail(GuiGraphics graphics, int mouseX, int mouseY, float partialTick,
             CallbackInfo ci) {
         try {
@@ -39,7 +39,7 @@ public abstract class XaeroWorldMapMixin {
         }
     }
 
-    @Inject(method = "mouseClicked(DDI)Z", at = @At("HEAD"), remap = false, cancellable = true, require = 0)
+    @Inject(method = {"mouseClicked", "m_6375_"}, at = @At("HEAD"), remap = false, cancellable = true, require = 0)
     public void mtrmap$onMouseClicked(double mouseX, double mouseY, int button,
             CallbackInfoReturnable<Boolean> cir) {
         try {

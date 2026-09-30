@@ -14,8 +14,8 @@ class TrackRibbonGeometryTest {
     @Test
     void adjacentBandsShareOnlyTheirBoundary() {
         final List<double[]> rail = List.of(new double[] {0, 0}, new double[] {10, 0});
-        final List<double[]> first = TrackRibbonGeometry.sections(rail, -2, 0).getFirst();
-        final List<double[]> second = TrackRibbonGeometry.sections(rail, 0, 2).getFirst();
+        final List<double[]> first = TrackRibbonGeometry.sections(rail, -2, 0).get(0);
+        final List<double[]> second = TrackRibbonGeometry.sections(rail, 0, 2).get(0);
         assertEquals(4, first.size());
         assertEquals(4, second.size());
         assertEquals(0, first.get(0)[1]);
@@ -27,7 +27,7 @@ class TrackRibbonGeometryTest {
     @Test
     void duplicateSamplesDoNotProduceDegenerateBand() {
         final List<double[]> polygon = TrackRibbonGeometry.sections(
-                List.of(new double[] {0, 0}, new double[] {0, 0}, new double[] {3, 4}), -1, 1).getFirst();
+                List.of(new double[] {0, 0}, new double[] {0, 0}, new double[] {3, 4}), -1, 1).get(0);
         assertEquals(4, polygon.size());
     }
 
@@ -38,9 +38,9 @@ class TrackRibbonGeometryTest {
                 .toList();
         final List<List<double[]>> sections = TrackRibbonGeometry.sections(rail, -2, 2);
         assertEquals(1, sections.size());
-        assertEquals(4, sections.getFirst().size());
-        assertTrue(sections.getFirst().getFirst()[0] < rail.getFirst()[0]);
-        assertTrue(sections.getFirst().get(1)[0] > rail.getLast()[0]);
+        assertEquals(4, sections.get(0).size());
+        assertTrue(sections.get(0).get(0)[0] < rail.get(0)[0]);
+        assertTrue(sections.get(0).get(1)[0] > rail.get(rail.size() - 1)[0]);
     }
 
     @Test

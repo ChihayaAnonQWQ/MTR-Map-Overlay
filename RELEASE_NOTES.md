@@ -1,3 +1,18 @@
+# 1.5.2 — MC 1.20.1 compatibility branch
+
+Port the v1.5.1 map overlay to Forge and Fabric MC 1.20.1 with MTR 4.0.5. The main NeoForge/Fabric MC 1.21.1 branch remains separate.
+
+- Restore Java 17-compatible rendering, resource IDs, tooltip colours and MTR 4.0 package names.
+- Adapt full-network sync to optional Forge SimpleChannel and Fabric 1.20 packet receivers; retain protocol-v5 snapshots, hashes and bounded chunk reassembly.
+- Resolve platform rails from exact endpoints because MTR 4.0 platforms have no public live-rail field.
+- Keep Xaero route/track controls, map-only icons and JourneyMap 6 v2 integration. Forge Xaero hooks accept both development and production SRG method names.
+- Extract the pinned JourneyMap 6.0.6 API for compilation; do not bundle third-party map mods or APIs.
+- Run shared geometry, pathfinder, snapshot and packet codec tests on both loaders. The world-writing test generator is opt-in.
+
+Targets MC 1.20.1 only. MC 1.20.4 / JourneyMap 5 integration is not implemented. No public release or in-game validation is included in this branch work.
+
+---
+
 # v1.5.1 Pre-release Notes (2026-09-28)
 
 Compared with [v1.5.0](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.0), this pre-release fixes NeoForge Dedicated Server startup:

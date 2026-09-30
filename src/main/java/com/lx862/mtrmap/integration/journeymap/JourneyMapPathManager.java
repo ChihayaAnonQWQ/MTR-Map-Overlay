@@ -165,9 +165,9 @@ final class JourneyMapPathManager {
         final int g = (color >> 8) & 0xFF;
         final int b = color & 0xFF;
         final int a = RailRenderStyle.TRACK_ALPHA;
-        consumer.addVertex(matrix, (float) (x1 + nx * right), (float) (y1 + ny * right), 0).setColor(r, g, b, a);
-        consumer.addVertex(matrix, (float) (x2 + nx * right), (float) (y2 + ny * right), 0).setColor(r, g, b, a);
-        consumer.addVertex(matrix, (float) (x2 + nx * left), (float) (y2 + ny * left), 0).setColor(r, g, b, a);
-        consumer.addVertex(matrix, (float) (x1 + nx * left), (float) (y1 + ny * left), 0).setColor(r, g, b, a);
+        consumer.vertex(matrix, (float) (x1 + nx * right), (float) (y1 + ny * right), 0).color(r, g, b, a).endVertex();
+        consumer.vertex(matrix, (float) (x2 + nx * right), (float) (y2 + ny * right), 0).color(r, g, b, a).endVertex();
+        consumer.vertex(matrix, (float) (x2 + nx * left), (float) (y2 + ny * left), 0).color(r, g, b, a).endVertex();
+        consumer.vertex(matrix, (float) (x1 + nx * left), (float) (y1 + ny * left), 0).color(r, g, b, a).endVertex();
     }
 }

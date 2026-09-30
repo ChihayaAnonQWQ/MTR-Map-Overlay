@@ -2,11 +2,11 @@ package com.lx862.mtrmap;
 
 import com.lx862.mtrmap.config.MTRMapConfig;
 import com.lx862.mtrmap.network.MTRNetwork;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.ModList;
-import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.fml.ModContainer;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.ModList;
+import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraft.server.MinecraftServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,12 +19,15 @@ public class MTRMap {
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_NAME);
     private static MinecraftServer serverInstance = null;
 
-    public MTRMap(IEventBus modEventBus, ModContainer modContainer) {
+    public MTRMap() {
+        IEventBus modEventBus = net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext.get().getModEventBus();
+        ModContainer modContainer = net.minecraftforge.fml.ModLoadingContext.get().getActiveContainer();
         MTRMapConfig.register(modContainer);
 
         // Mod-bus events
         modEventBus.addListener(this::setup);
-        modEventBus.addListener(MTRNetwork::register);
+        MTRNetwork.register();
+        net.minecraftforge.fml.DistExecutor.safeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT, () -> MTRMapClient::initialize);
     }
 
     private void setup(final FMLCommonSetupEvent event) {

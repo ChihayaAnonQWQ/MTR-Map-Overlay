@@ -78,7 +78,7 @@ public final class TrackRibbonGeometry {
             if (point == null || point.length < 2 || !Double.isFinite(point[0]) || !Double.isFinite(point[1])) {
                 continue;
             }
-            if (points.isEmpty() || Math.hypot(point[0] - points.getLast()[0], point[1] - points.getLast()[1]) > 1.0E-4) {
+            if (points.isEmpty() || Math.hypot(point[0] - points.get(points.size() - 1)[0], point[1] - points.get(points.size() - 1)[1]) > 1.0E-4) {
                 points.add(point);
             }
         }

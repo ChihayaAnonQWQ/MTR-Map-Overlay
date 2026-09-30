@@ -43,9 +43,9 @@ public class XaeroRouteRenderer {
     /** Segment hit distance (in blocks) for hover picking. */
     private static final double SEGMENT_PICK_RADIUS = 10.0;
     private static final int MAX_TOOLTIP_ROUTES = 4;
-    private static final ResourceLocation STATION_ICON = ResourceLocation.fromNamespaceAndPath(MTRMap.MOD_ID,
+    private static final ResourceLocation STATION_ICON = new ResourceLocation(MTRMap.MOD_ID,
             "textures/atlas/marker/train_station.png");
-    private static final ResourceLocation DEPOT_ICON = ResourceLocation.fromNamespaceAndPath(MTRMap.MOD_ID,
+    private static final ResourceLocation DEPOT_ICON = new ResourceLocation(MTRMap.MOD_ID,
             "textures/atlas/marker/train_depot.png");
     private static final int STATION_ICON_SIZE = 12;
     private static final int DEPOT_ICON_SIZE = 10;
@@ -336,14 +336,14 @@ public class XaeroRouteRenderer {
             final double left = -halfWidth + bandWidth * i;
             final double right = i == bands.size() - 1 ? halfWidth : left + bandWidth;
             final int color = band.color();
-            consumer.addVertex(matrix, (float) (x1 + nx * right), (float) (z1 + nz * right), 0)
-                    .setColor((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, RailRenderStyle.TRACK_ALPHA);
-            consumer.addVertex(matrix, (float) (x2 + nx * right), (float) (z2 + nz * right), 0)
-                    .setColor((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, RailRenderStyle.TRACK_ALPHA);
-            consumer.addVertex(matrix, (float) (x2 + nx * left), (float) (z2 + nz * left), 0)
-                    .setColor((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, RailRenderStyle.TRACK_ALPHA);
-            consumer.addVertex(matrix, (float) (x1 + nx * left), (float) (z1 + nz * left), 0)
-                    .setColor((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, RailRenderStyle.TRACK_ALPHA);
+            consumer.vertex(matrix, (float) (x1 + nx * right), (float) (z1 + nz * right), 0)
+                    .color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, RailRenderStyle.TRACK_ALPHA).endVertex();
+            consumer.vertex(matrix, (float) (x2 + nx * right), (float) (z2 + nz * right), 0)
+                    .color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, RailRenderStyle.TRACK_ALPHA).endVertex();
+            consumer.vertex(matrix, (float) (x2 + nx * left), (float) (z2 + nz * left), 0)
+                    .color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, RailRenderStyle.TRACK_ALPHA).endVertex();
+            consumer.vertex(matrix, (float) (x1 + nx * left), (float) (z1 + nz * left), 0)
+                    .color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, RailRenderStyle.TRACK_ALPHA).endVertex();
         }
     }
 
@@ -389,18 +389,18 @@ public class XaeroRouteRenderer {
         final double px = -dz / length * halfWidth;
         final double pz = dx / length * halfWidth;
 
-        consumer.addVertex(matrix, (float) (x1 + px), (float) (z1 + pz), 0).setColor(r, g, b, a);
-        consumer.addVertex(matrix, (float) (x2 + px), (float) (z2 + pz), 0).setColor(r, g, b, a);
-        consumer.addVertex(matrix, (float) (x2 - px), (float) (z2 - pz), 0).setColor(r, g, b, a);
-        consumer.addVertex(matrix, (float) (x1 - px), (float) (z1 - pz), 0).setColor(r, g, b, a);
+        consumer.vertex(matrix, (float) (x1 + px), (float) (z1 + pz), 0).color(r, g, b, a).endVertex();
+        consumer.vertex(matrix, (float) (x2 + px), (float) (z2 + pz), 0).color(r, g, b, a).endVertex();
+        consumer.vertex(matrix, (float) (x2 - px), (float) (z2 - pz), 0).color(r, g, b, a).endVertex();
+        consumer.vertex(matrix, (float) (x1 - px), (float) (z1 - pz), 0).color(r, g, b, a).endVertex();
     }
 
     private static void fillQuad(Matrix4f matrix, VertexConsumer consumer,
             double x1, double z1, double x2, double z2, int r, int g, int b, int a) {
-        consumer.addVertex(matrix, (float) x1, (float) z1, 0).setColor(r, g, b, a);
-        consumer.addVertex(matrix, (float) x1, (float) z2, 0).setColor(r, g, b, a);
-        consumer.addVertex(matrix, (float) x2, (float) z2, 0).setColor(r, g, b, a);
-        consumer.addVertex(matrix, (float) x2, (float) z1, 0).setColor(r, g, b, a);
+        consumer.vertex(matrix, (float) x1, (float) z1, 0).color(r, g, b, a).endVertex();
+        consumer.vertex(matrix, (float) x1, (float) z2, 0).color(r, g, b, a).endVertex();
+        consumer.vertex(matrix, (float) x2, (float) z2, 0).color(r, g, b, a).endVertex();
+        consumer.vertex(matrix, (float) x2, (float) z1, 0).color(r, g, b, a).endVertex();
     }
 
     private static boolean routeIntersects(MapRoute route, double minX, double minZ, double maxX, double maxZ) {
@@ -469,7 +469,7 @@ public class XaeroRouteRenderer {
         }
         for (TrackRoutePalette.Entry route : bestRoutes) {
             tooltip.add(Component.literal(route.name() == null ? "Route" : route.name())
-                    .withStyle(ChatFormatting.BOLD).withColor(route.color()));
+                    .withStyle(ChatFormatting.BOLD).withStyle(style -> style.withColor(route.color())));
         }
         if (tooltip.size() > MAX_TOOLTIP_ROUTES) {
             return tooltip.subList(0, MAX_TOOLTIP_ROUTES);
@@ -534,7 +534,7 @@ public class XaeroRouteRenderer {
     }
 
     private static ResourceLocation toggleIcon(String name) {
-        return ResourceLocation.fromNamespaceAndPath(MTRMap.MOD_ID, "textures/gui/" + name + ".png");
+        return new ResourceLocation(MTRMap.MOD_ID, "textures/gui/" + name + ".png");
     }
 
     private static boolean isHovered(double mouseX, double mouseY, int index) {

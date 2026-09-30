@@ -40,7 +40,7 @@ class RoutePathfinderTest {
 
     private static Rail rail(Position start, Position end) {
         final Rail rail = Rail.newRail(start, angleOf(start, end), end, angleOf(end, start),
-                Rail.Shape.QUADRATIC, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                Rail.Shape.QUADRATIC, 0,
                 new ObjectArrayList<>(), 1, 2, false, false, true, false, true, TransportMode.TRAIN);
         assertNotNull(rail);
         return rail;
@@ -54,7 +54,7 @@ class RoutePathfinderTest {
                 new Position(Math.round(start.x()), Math.round(start.y()), Math.round(start.z())),
                 new Position(Math.round(end.x()), Math.round(end.y()), Math.round(end.z())),
                 TransportMode.TRAIN, DATA);
-        platform.rail = rail;
+
         return platform;
     }
 

@@ -1,10 +1,11 @@
 package com.lx862.mtrmap.config;
 
 import com.lx862.mtrmap.MTRMap;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.config.ModConfig;
-import net.neoforged.fml.loading.FMLPaths;
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraftforge.fml.ModContainer;
+import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraftforge.common.ForgeConfigSpec;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -13,39 +14,39 @@ import java.nio.file.StandardCopyOption;
 
 public class MTRMapConfig {
 
-        public static final ModConfigSpec SPEC;
+        public static final ForgeConfigSpec SPEC;
         public static final MTRMapConfig INSTANCE;
 
         // General
-        public final ModConfigSpec.BooleanValue formalInitLog;
-        public final ModConfigSpec.BooleanValue debugLog;
-        public final ModConfigSpec.BooleanValue enabled;
+        public final ForgeConfigSpec.BooleanValue formalInitLog;
+        public final ForgeConfigSpec.BooleanValue debugLog;
+        public final ForgeConfigSpec.BooleanValue enabled;
 
         // Client-only fallback mode: "station", "platform", or "both"
-        public final ModConfigSpec.ConfigValue<String> waypointMode;
+        public final ForgeConfigSpec.ConfigValue<String> waypointMode;
 
         // World map path layers
-        public final ModConfigSpec.BooleanValue routeLinesEnabled;
-        public final ModConfigSpec.BooleanValue trackLinesEnabled;
+        public final ForgeConfigSpec.BooleanValue routeLinesEnabled;
+        public final ForgeConfigSpec.BooleanValue trackLinesEnabled;
 
         // Full-network sync (requires the mod on the server)
-        public final ModConfigSpec.BooleanValue networkSyncEnabled;
-        public final ModConfigSpec.IntValue networkSyncIntervalSeconds;
+        public final ForgeConfigSpec.BooleanValue networkSyncEnabled;
+        public final ForgeConfigSpec.IntValue networkSyncIntervalSeconds;
 
         // Visibility
-        public final ModConfigSpec.BooleanValue showStationLandmarks;
-        public final ModConfigSpec.BooleanValue showPlatformLandmarks;
-        public final ModConfigSpec.BooleanValue showDepotLandmarks;
-        public final ModConfigSpec.BooleanValue showEmptyStation;
-        public final ModConfigSpec.BooleanValue showHiddenRoute;
+        public final ForgeConfigSpec.BooleanValue showStationLandmarks;
+        public final ForgeConfigSpec.BooleanValue showPlatformLandmarks;
+        public final ForgeConfigSpec.BooleanValue showDepotLandmarks;
+        public final ForgeConfigSpec.BooleanValue showEmptyStation;
+        public final ForgeConfigSpec.BooleanValue showHiddenRoute;
 
         static {
-                ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
+                ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
                 INSTANCE = new MTRMapConfig(builder);
                 SPEC = builder.build();
         }
 
-        private MTRMapConfig(ModConfigSpec.Builder builder) {
+        private MTRMapConfig(ForgeConfigSpec.Builder builder) {
                 builder.comment("MTR Map Overlay Configuration");
 
                 formalInitLog = builder
@@ -107,7 +108,7 @@ public class MTRMapConfig {
 
         public static void register(ModContainer modContainer) {
                 migrateLegacyConfig();
-                modContainer.registerConfig(ModConfig.Type.COMMON, SPEC, "mtrmap.toml");
+                ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, SPEC, "mtrmap.toml");
         }
 
         private static void migrateLegacyConfig() {

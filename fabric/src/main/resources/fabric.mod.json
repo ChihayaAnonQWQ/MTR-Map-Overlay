@@ -15,9 +15,9 @@
   "depends": {
     "fabricloader": ">=0.16.0",
     "fabric-api": "*",
-    "minecraft": "1.21.1",
-    "java": ">=21",
-    "mtr": "*"
+    "minecraft": "${minecraft_version}",
+    "java": ">=17",
+    "mtr": ">=4.0.5 <4.1"
   },
   "suggests": {
     "xaeroworldmap": "*",

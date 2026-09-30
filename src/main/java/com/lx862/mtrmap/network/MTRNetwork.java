@@ -1,64 +1,43 @@
 package com.lx862.mtrmap.network;
-
 import com.lx862.mtrmap.MTRMap;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.fml.loading.FMLEnvironment;
-import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
-import net.neoforged.neoforge.network.registration.PayloadRegistrar;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.network.NetworkDirection;
+import net.minecraftforge.network.NetworkRegistry;
+import net.minecraftforge.network.PacketDistributor;
+import net.minecraftforge.network.simple.SimpleChannel;
 
-/**
- * NeoForge payload registration for the full-network map sync (Plan C).
- *
- * <p>When this mod is installed on the server, clients can request a snapshot
- * of the whole MTR network (routes + sampled track geometry) per dimension -
- * the same data model Create's train map uses. The snapshot is transferred in
- * chunks so arbitrarily large networks stay within packet size limits.</p>
- *
- * <p>Both payloads are registered as {@code optional()}, so connecting to a
- * NeoForge server without this mod never disconnects the client; presence is
- * probed empirically by {@link ClientNetworkSync}.</p>
- */
-public class MTRNetwork {
-
-    private static final String PROTOCOL_VERSION = "5";
-
-    public static void register(RegisterPayloadHandlersEvent event) {
-        final PayloadRegistrar registrar = event.registrar(PROTOCOL_VERSION).optional();
-        registrar.playToServer(RequestNetworkSync.TYPE, RequestNetworkSync.STREAM_CODEC, (msg, ctx) -> {
-            if (ctx.player() instanceof ServerPlayer sender) {
-                ctx.enqueueWork(() -> ServerNetworkCollector.collectAndSend(sender, msg.dimensionFilter()));
-            }
-        });
-        registrar.playToServer(NetworkSyncProbe.TYPE, NetworkSyncProbe.STREAM_CODEC, (msg, ctx) -> {
-            if (ctx.player() instanceof ServerPlayer sender) {
-                ctx.enqueueWork(() -> ServerNetworkCollector.sendProbeResponse(sender));
-            }
-        });
-        // The payload types exist on both sides, but a dedicated server must
-        // never resolve their physical-client handlers.
-        if (FMLEnvironment.dist == Dist.CLIENT) {
-            registrar.playToClient(NetworkSyncChunk.TYPE, NetworkSyncChunk.STREAM_CODEC,
-                    MTRNetworkClient::onChunk);
-            registrar.playToClient(NetworkProbeResponse.TYPE, NetworkProbeResponse.STREAM_CODEC,
-                    MTRNetworkClient::onProbe);
-        } else {
-            registrar.playToClient(NetworkSyncChunk.TYPE, NetworkSyncChunk.STREAM_CODEC,
-                    (msg, ctx) -> {});
-            registrar.playToClient(NetworkProbeResponse.TYPE, NetworkProbeResponse.STREAM_CODEC,
-                    (msg, ctx) -> {});
+/** Optional Forge channel with direction-restricted handlers. */
+public final class MTRNetwork {
+    public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
+            new ResourceLocation(MTRMap.MOD_ID, "network_v5"), () -> "5",
+            version -> "5".equals(version) || NetworkRegistry.ABSENT.equals(version)
+                    || NetworkRegistry.ACCEPTVANILLA.equals(version),
+            version -> "5".equals(version) || NetworkRegistry.ABSENT.equals(version)
+                    || NetworkRegistry.ACCEPTVANILLA.equals(version));
+    public static void register() {
+        CHANNEL.messageBuilder(RequestNetworkSync.class, 0, NetworkDirection.PLAY_TO_SERVER)
+                .encoder((msg, buf) -> RequestNetworkSync.write(buf, msg)).decoder(RequestNetworkSync::read)
+                .consumerMainThread((msg, ctx) -> {
+                    ServerPlayer sender = ctx.get().getSender();
+                    if (sender != null) ServerNetworkCollector.collectAndSend(sender, msg.dimensionFilter());
+                }).add();
+        CHANNEL.messageBuilder(NetworkSyncProbe.class, 1, NetworkDirection.PLAY_TO_SERVER)
+                .encoder((msg, buf) -> NetworkSyncProbe.write(buf, msg)).decoder(NetworkSyncProbe::read)
+                .consumerMainThread((msg, ctx) -> {
+                    ServerPlayer sender = ctx.get().getSender();
+                    if (sender != null) ServerNetworkCollector.sendProbeResponse(sender);
+                }).add();
+        CHANNEL.messageBuilder(NetworkSyncChunk.class, 2, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder((msg, buf) -> NetworkSyncChunk.write(buf, msg)).decoder(NetworkSyncChunk::read)
+                .consumerMainThread((msg, ctx) -> MTRNetworkClient.onChunk(msg)).add();
+        CHANNEL.messageBuilder(NetworkProbeResponse.class, 3, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder((msg, buf) -> NetworkProbeResponse.write(buf, msg)).decoder(NetworkProbeResponse::read)
+                .consumerMainThread((msg, ctx) -> MTRNetworkClient.onProbe(msg)).add();
+    }
+    public static void sendToPlayer(ServerPlayer player, MapPacket packet) {
+        if (CHANNEL.isRemotePresent(player.connection.connection)) {
+            CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), packet);
         }
-        MTRMap.LOGGER.info("[MTRMap] Full-network sync payloads registered (protocol {})", PROTOCOL_VERSION);
-    }
-
-    public static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MTRMap.MOD_ID, path);
-    }
-
-    public static void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {
-        PacketDistributor.sendToPlayer(player, payload);
     }
 }

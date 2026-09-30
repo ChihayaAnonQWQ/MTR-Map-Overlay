@@ -1,32 +1,12 @@
 package com.lx862.mtrmap.network;
-
-import com.lx862.mtrmap.mixin.client.ClientCommonListenerAccessor;
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.neoforged.neoforge.network.PacketDistributor;
-import net.neoforged.neoforge.network.connection.ConnectionType;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
-
-/** NeoForge transport functions that may only run on the physical client. */
+/** Physical-client callbacks. Never executed on a dedicated server. */
 public final class MTRNetworkClient {
-
-    private MTRNetworkClient() {
-    }
-
-    static void onChunk(NetworkSyncChunk msg, IPayloadContext context) {
-        context.enqueueWork(() -> ClientNetworkSync.onChunkReceived(msg));
-    }
-
-    static void onProbe(NetworkProbeResponse msg, IPayloadContext context) {
-        context.enqueueWork(() -> ClientNetworkSync.onProbeReceived(msg.hashes()));
-    }
-
+    static void onChunk(NetworkSyncChunk packet) { ClientNetworkSync.onChunkReceived(packet); }
+    static void onProbe(NetworkProbeResponse packet) { ClientNetworkSync.onProbeReceived(packet.hashes()); }
     public static boolean canSendToServer() {
-        return Minecraft.getInstance().getConnection() instanceof ClientCommonListenerAccessor accessor
-                && accessor.mtrmap$getConnectionType() == ConnectionType.NEOFORGE;
+        var listener = Minecraft.getInstance().getConnection();
+        return listener != null && MTRNetwork.CHANNEL.isRemotePresent(listener.getConnection());
     }
-
-    public static void sendToServer(CustomPacketPayload payload) {
-        PacketDistributor.sendToServer(payload);
-    }
+    public static void sendToServer(MapPacket packet) { MTRNetwork.CHANNEL.sendToServer(packet); }
 }
