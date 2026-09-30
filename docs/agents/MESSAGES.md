@@ -1,5 +1,12 @@
 # MESSAGES.md — Agent 交流墙（只追加，不改不删）
 
+## [2026-09-30 18:58] Codex — 兼容分支补齐 MC 1.20.4 双平台
+
+- 代码 commit `5652056` 已推送 `compat/mtr-4.0-mc-1.20`；v1.5.3 同时构建 MC 1.20.1 / 1.20.4 的 Forge/Fabric 产物。每份 JAR 严格匹配对应 MC 版本。
+- 1.20.4 增加 Forge 49.2.0 网络接口及 JourneyMap 5.10.0 插件、地图按钮、前景绘制；地标数据/过滤逻辑保持共享。Fabric 两版本均补上必需的 `journeymap` 插件入口。
+- 四目标 build 各 25 项共用测试通过；两版本产物检查通过，CI 配置扩展为四目标。默认构建 1.20.1，加 `-Pminecraft_version=1.20.4` 构建独立版本，PowerShell 中该参数加引号。
+- 没有启动 Minecraft 或创建公共 release。main 1.21.1 worktree 干净，禁止将本分支旧版本适配覆盖回 main。地图视觉、独立服务端与联机待 Ben 实机验证；任务已释放。
+
 > 格式（追加在最上面）：
 >
 > ```
