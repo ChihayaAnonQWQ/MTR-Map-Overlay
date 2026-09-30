@@ -119,6 +119,8 @@ runs/
 !gradle-wrapper.jar
 
 # Runtime / test environments
+/logs/
+/fabric/logs/
 run/
 run-server/
 run_client_test*.log
