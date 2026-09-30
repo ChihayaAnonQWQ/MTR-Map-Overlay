@@ -1,18 +1,18 @@
-# MTR Map Overlay — MC 1.20.1 兼容分支
+# MTR Map Overlay — MC 1.20 兼容分支
 
-分支：`compat/mtr-4.0-mc-1.20`，版本：**1.5.2**。从主线 v1.5.1 移植，主线仍支持 NeoForge/Fabric 1.21.1。
+分支：`compat/mtr-4.0-mc-1.20`，版本：**1.5.3**。从主线 v1.5.1 移植，主线仍支持 NeoForge/Fabric 1.21.1。
 
 ## 支持版本
 
 | 组件 | 版本 |
 | --- | --- |
-| Minecraft | **1.20.1**；游戏运行需要 Java 17+ |
+| Minecraft | **1.20.1 / 1.20.4**；游戏运行需要 Java 17+，两版本使用独立 JAR |
 | MTR | **4.0.5**（2026-09-30 核实的最新稳定 4.0.x）；必须匹配加载器 |
-| 加载器 | Forge 47.x 或 Fabric Loader 0.16.14 + Fabric API 0.92.6+1.20.1 |
-| 地图 | Xaero's World Map 1.45.0+ 和/或 JourneyMap **6.0.6+**，均需匹配 MC 和加载器 |
+| 加载器 | Forge 47.x（1.20.1）/ 49.x（1.20.4），或 Fabric Loader 0.16.14 + 对应版本 Fabric API |
+| 地图 | Xaero's World Map 1.45.0+；JourneyMap **6.0.6+（1.20.1）/ 5.10.0（1.20.4）**，均需匹配 MC 和加载器 |
 | Xaero's Minimap | 可选；仅用于清理早期版本的旧航点 |
 
-MC 1.20.4 尚未移植，它的 JourneyMap 5.x 需要另一套 API。当前 JAR 元数据只允许 MC 1.20.1 / MTR >=4.0.5 且 <4.1，不能当作整个 1.20.x 系列的通用 JAR。
+四个目标分别覆盖两种 MC 版本和两种加载器。每份 JAR 元数据严格匹配对应 MC 版本，要求 MTR >=4.0.5 且 <4.1；安装时需同时匹配 MC 版本和加载器。
 
 ## 功能
 
@@ -29,15 +29,21 @@ MC 1.20.4 尚未移植，它的 JourneyMap 5.x 需要另一套 API。当前 JAR 
 ```powershell
 .\gradlew.bat build
 .\fabric\gradlew.bat -p fabric build
+.\gradlew.bat build "-Pminecraft_version=1.20.4"
+.\fabric\gradlew.bat -p fabric build "-Pminecraft_version=1.20.4"
 ```
 
 产物：
 
-- `build/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.1-1.5.2.jar`
-- `fabric/build/libs/CRTools-MTR-Map-Overlay-fabric-mc1.20.1-1.5.2.jar`
+- `build/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.1-1.5.3.jar`
+- `fabric/build/libs/CRTools-MTR-Map-Overlay-fabric-mc1.20.1-1.5.3.jar`
+- `build/mc1.20.4/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.4-1.5.3.jar`
+- `fabric/build/mc1.20.4/libs/CRTools-MTR-Map-Overlay-fabric-mc1.20.4-1.5.3.jar`
 
 只安装对应加载器的一份 JAR。Forge 使用 Gradle 8.8 / ForgeGradle 6.0.54；Fabric 使用 Gradle 9.5.0 / Loom 1.17.21。JourneyMap 发布包内的 v2 API 会按原包校验、提取并重映射作为编译依赖，不打包进本模组。
 
-两个构建都会运行共用测试。写入测试存档的生成器默认跳过；在明确需要生成存档时用 `-PmtrmapGenerateTestWorld=true` 启用。构建/无头测试不能证明实机地图渲染和跨机器同步已经通过，需手动检查两平台的地图开关、拖动缩放、全网同步和无服务端组件回退。
+四个构建都会运行共用测试。产物检查使用 `python tools/verify_artifacts.py` 及 `python tools/verify_artifacts.py --minecraft 1.20.4`。写入测试存档的生成器默认跳过；在明确需要生成存档时用 `-PmtrmapGenerateTestWorld=true` 启用。构建/无头测试不能证明实机地图渲染和跨机器同步已经通过，需手动检查两平台的地图开关、拖动缩放、全网同步和无服务端组件回退。
+
+1.20.4 的专用适配位于 `compat/mc1204/`，包含 Forge 49 网络、JourneyMap 5 插件及两平台地图按钮事件。在 JourneyMap 地图绘制后、工具栏绘制前叠加轨道与地标；复用共用数据、筛选、寻路及协议 v5。1.20.4 Fabric API 使用 0.97.3+1.20.4。JourneyMap 地标/存在性适配由 `gradle/minecraft-target.gradle` 从共用源码生成，避免复制数据处理逻辑。
 
 完整功能、命令与源码说明见 [English README](README.md)。许可证和原作者署名保留于 [LICENSE](LICENSE)。

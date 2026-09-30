@@ -5,7 +5,7 @@
 
 ## 本分支说明（2026-09-30，Codex）
 
-本分支为 MTR 4.0.5 / Forge + Fabric MC 1.20.1，v1.5.2。下面保留的 1.21.1 主线导览用于理解共享架构；**依赖、构建命令和入口以本分支 README / gradle.properties / build.gradle 为准**。MTR 4.0 mod 包为 `org.mtr.mod.*`，服务端入口为 `org.mtr.mod.Init`；Forge 使用可选 SimpleChannel，Fabric 使用 1.20 原始包通道，均保留快照协议 v5。
+本分支为 MTR 4.0.5 / Forge + Fabric MC 1.20.1 / 1.20.4，v1.5.3。下面保留的 1.21.1 主线导览用于理解共享架构；**依赖、构建命令和入口以本分支 README / gradle.properties / build.gradle 为准**。MTR 4.0 mod 包为 `org.mtr.mod.*`，服务端入口为 `org.mtr.mod.Init`；Forge 使用可选 SimpleChannel，Fabric 使用 1.20 原始包通道，均保留快照协议 v5。默认构建 1.20.1，加 `-Pminecraft_version=1.20.4` 构建 1.20.4；后者的 Forge 49 / JourneyMap 5 适配在 `compat/mc1204/`。
 
 ## 1. 项目是什么
 

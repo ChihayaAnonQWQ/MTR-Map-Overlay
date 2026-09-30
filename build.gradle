@@ -2,8 +2,9 @@ plugins {
     id 'net.minecraftforge.gradle' version '6.0.54'
     id 'org.spongepowered.mixin' version '0.7-SNAPSHOT'
 }
+ext.journeyMapLoader = 'forge'
+apply from: 'gradle/minecraft-target.gradle'
 version = project.mod_version
-if (project.minecraft_version != '1.20.1') throw new GradleException('This branch currently supports MC 1.20.1 only')
 group = project.maven_group
 base.archivesName = project.archives_base_name + '-forge-mc' + project.minecraft_version
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
@@ -30,11 +31,11 @@ repositories {
     maven { url = 'https://api.modrinth.com/maven' }
 }
 dependencies {
-    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${targetForgeVersion}"
     compileOnly "maven.modrinth:minecraft-transit-railway:FORGE-${mtr_version}+${minecraft_version}"
     compileOnly fg.deobf("maven.modrinth:xaeros-minimap:forge-${minecraft_version}-26.4.2")
     compileOnly fg.deobf("maven.modrinth:xaeros-world-map:forge-${minecraft_version}-1.45.0")
-    compileOnly fg.deobf('maven.modrinth:journeymap:1.20.1-6.0.6+forge')
+    compileOnly fg.deobf("maven.modrinth:journeymap:${journeyMapModVersion}")
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
     testImplementation "maven.modrinth:minecraft-transit-railway:FORGE-${mtr_version}+${minecraft_version}"
     testImplementation platform('org.junit:junit-bom:5.10.2')
@@ -46,9 +47,9 @@ test {
 }
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 processResources {
-    inputs.properties(version: project.version, minecraft_version: project.minecraft_version, mtr_version: project.mtr_version)
+    inputs.properties(version: project.version, minecraft_version: project.minecraft_version, mtr_version: project.mtr_version, forge_major: targetForgeMajor, journeymap_minimum: journeyMapMinimum, pack_format: targetPackFormat)
     filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
-        expand version: project.version, minecraft_version: project.minecraft_version, mtr_version: project.mtr_version
+        expand version: project.version, minecraft_version: project.minecraft_version, mtr_version: project.mtr_version, forge_major: targetForgeMajor, journeymap_minimum: journeyMapMinimum, pack_format: targetPackFormat
     }
 }
 jar {
@@ -58,5 +59,20 @@ jar {
 
 
 
-ext.journeyMapLoader = 'forge'
 apply from: 'gradle/journeymap-api.gradle'
+
+if (legacyJourneyMap) {
+    def common = fileTree('compat/mc1204/common/java')
+    def forge = fileTree('compat/mc1204/forge/java')
+    def overrides = (common.files.collect { common.dir.toPath().relativize(it.toPath()).toString().replace('\\', '/') }
+            + forge.files.collect { forge.dir.toPath().relativize(it.toPath()).toString().replace('\\', '/') }
+            + journeyMap5Overrides)
+    compileJava.setSource(files(fileTree('src/main/java') { exclude overrides }, common, forge, journeyMap5GeneratedSources))
+    compileJava.dependsOn generateJourneyMap5Adapters
+    processResources.doLast {
+        def config = new File(destinationDir, 'mtrmap.mixins.json')
+        def json = new groovy.json.JsonSlurper().parse(config)
+        json.client.add('client.journeymap.JourneyMapFullscreenMixin')
+        config.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json))
+    }
+}

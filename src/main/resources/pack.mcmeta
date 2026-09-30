@@ -1,6 +1,6 @@
 {
   "pack": {
     "description": "MTR Map Overlay v${version} - Map Icons & Route Ribbons",
-    "pack_format": 15
+    "pack_format": ${pack_format}
   }
 }

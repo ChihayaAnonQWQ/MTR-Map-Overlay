@@ -5,10 +5,10 @@
 
   <p>Minecraft Transit Railway routes, rails and stations on your map.</p>
 
-  <p><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="https://github.com/teamCreating/MTR-Map-Overlay/tree/compat/mtr-4.0-mc-1.20">MC 1.20.1 compatibility branch</a></p>
+  <p><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="https://github.com/teamCreating/MTR-Map-Overlay/tree/compat/mtr-4.0-mc-1.20">MC 1.20 compatibility branch</a></p>
 </div>
 
-MTR Map Overlay is a Minecraft 1.20.1 add-on for **Forge or Fabric**. It reads [Minecraft Transit Railway (MTR)](https://github.com/Minecraft-Transit-Railway/Minecraft-Transit-Railway) data and integrates with Xaero's World Map and JourneyMap. It does not depend on MTR Surveyor's map.
+MTR Map Overlay is a Minecraft 1.20.1 / 1.20.4 add-on for **Forge or Fabric**. It reads [Minecraft Transit Railway (MTR)](https://github.com/Minecraft-Transit-Railway/Minecraft-Transit-Railway) data and integrates with Xaero's World Map and JourneyMap. It does not depend on MTR Surveyor's map.
 
 ## Features
 
@@ -25,18 +25,18 @@ When the mod is installed on the server as well as the client, it can request a 
 
 | Component | Requirement |
 | --- | --- |
-| Minecraft | 1.20.1, Java 17 or newer |
-| Mod loader | Forge 47.x **or** Fabric Loader with Fabric API |
+| Minecraft | 1.20.1 or 1.20.4, Java 17 or newer; choose the exact version JAR |
+| Mod loader | Forge 47.x (1.20.1) / 49.x (1.20.4), **or** Fabric Loader with the matching Fabric API |
 | MTR | 4.0.5 (latest stable 4.0.x checked on 2026-09-30), built for the same loader |
-| Map mod | Xaero's World Map 1.45.0+ and/or JourneyMap 6.0.6+ for the respective loader |
+| Map mod | Xaero's World Map 1.45.0+; JourneyMap 6.0.6+ (1.20.1) or 5.10.0 (1.20.4), for the same MC and loader |
 | Xaero's Minimap | Optional; used only to remove old `[MTR]` waypoints created by earlier releases |
 
-1. Build or download the **Forge MC 1.20.1** or **Fabric MC 1.20.1** JAR for this branch. Install one matching loader build in the client's `mods` directory. This branch is based on v1.5.1 and uses version **1.5.2**. The `main` branch continues to target NeoForge/Fabric MC 1.21.1.
+1. Build or download the **Forge** or **Fabric** JAR for your exact Minecraft version (1.20.1 / 1.20.4) JAR for this branch. Install one matching loader build in the client's `mods` directory. This branch is based on v1.5.1 and uses version **1.5.3**. The `main` branch continues to target NeoForge/Fabric MC 1.21.1.
 2. Install MTR and your chosen map mod for that same loader. Fabric additionally needs Fabric API.
 3. Optionally install the matching MTR Map Overlay JAR and MTR on the server to enable the whole-network view. Client and server must use the `mtrmap` mod ID; older `mtrsurveyor` builds are not compatible with this release.
 4. Open Xaero's World Map or JourneyMap's fullscreen map. Both maps have matching `ROUTES` and `TRACKS` icons (green left bar = on, red = off); JourneyMap puts them in its add-on button panel. The `/mtrmap config routeLines` and `trackLines` switches apply to both maps. Hover over a line or icon for details.
 
-The server component is optional. This branch supports **MC 1.20.1 only**; MC 1.20.4 is not yet ported (its JourneyMap 5.x uses a different API). The JAR metadata deliberately requires MC 1.20.1 and MTR >=4.0.5, <4.1. Forge and Fabric share protocol-v5 snapshot encoding, with separate loader transports; cross-loader connections are not claimed. Builds and headless tests do not verify in-game rendering or multiplayer behaviour.
+The server component is optional. This branch provides separate JARs for **MC 1.20.1 and 1.20.4**, each requiring its exact Minecraft version and MTR >=4.0.5, <4.1. Forge and Fabric share protocol-v5 snapshot encoding, with separate loader transports; cross-loader connections are not claimed. Builds and headless tests do not verify in-game rendering or multiplayer behaviour.
 
 ## Commands and configuration
 
@@ -59,14 +59,16 @@ Forge stores settings in `config/mtrmap.toml` and copies an existing `mtrsurveyo
 
 ## Build from source
 
-Run Gradle with JDK 21. Both builds compile mod classes for Java 17 (the Minecraft 1.20.1 runtime). The loader builds have separate Gradle wrappers because they use different build plugins:
+Run Gradle with JDK 21. Both builds compile mod classes for Java 17 (both Minecraft targets). The loader builds have separate Gradle wrappers because they use different build plugins:
 
 | Loader | Windows | macOS / Linux | Output |
 | --- | --- | --- | --- |
-| Forge | `.\gradlew.bat build` | `./gradlew build` | `build/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.1-1.5.2.jar` |
-| Fabric | `.\fabric\gradlew.bat -p fabric build` | `./fabric/gradlew -p fabric build` | `fabric/build/libs/CRTools-MTR-Map-Overlay-fabric-mc1.20.1-1.5.2.jar` |
+| Forge 1.20.1 | `.\gradlew.bat build` | `./gradlew build` | `build/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.1-1.5.3.jar` |
+| Fabric 1.20.1 | `.\fabric\gradlew.bat -p fabric build` | `./fabric/gradlew -p fabric build` | `fabric/build/libs/CRTools-MTR-Map-Overlay-fabric-mc1.20.1-1.5.3.jar` |
+| Forge 1.20.4 | `.\gradlew.bat build "-Pminecraft_version=1.20.4"` | `./gradlew build -Pminecraft_version=1.20.4` | `build/mc1.20.4/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.4-1.5.3.jar` |
+| Fabric 1.20.4 | `.\fabric\gradlew.bat -p fabric build "-Pminecraft_version=1.20.4"` | `./fabric/gradlew -p fabric build -Pminecraft_version=1.20.4` | `fabric/build/mc1.20.4/libs/CRTools-MTR-Map-Overlay-fabric-mc1.20.4-1.5.3.jar` |
 
-Both builds run the shared JUnit tests. The test-world generator is opt-in and is skipped during ordinary builds. Forge uses Gradle 8.8 / ForgeGradle 6.0.54; Fabric uses Gradle 9.5.0 / Loom 1.17.21. The bundled JourneyMap API is extracted and remapped for compilation only; it is not shipped inside this mod. A successful build does not replace an in-game compatibility check, especially when Xaero's internal map renderer changes.
+All four targets run the shared JUnit tests. Check the packaged JARs with `python tools/verify_artifacts.py` and `python tools/verify_artifacts.py --minecraft 1.20.4`. The test-world generator is opt-in and is skipped during ordinary builds. Forge uses Gradle 8.8 / ForgeGradle 6.0.54; Fabric uses Gradle 9.5.0 / Loom 1.17.21. The bundled JourneyMap API is extracted and remapped for compilation only; it is not shipped inside this mod. A successful build does not replace an in-game compatibility check, especially when Xaero's internal map renderer changes.
 
 ## Source guide
 
@@ -77,11 +79,15 @@ The Forge sources are under [`src/main/java/com/lx862/mtrmap`](src/main/java/com
 | [`mapdata/`](src/main/java/com/lx862/mtrmap/mapdata) | `MapDataCache` selects server snapshots or nearby MTR client data. `TrackSampler` samples each physical rail, reused by route paths; `TrackRoutePalette` assigns stable colour bands and `MapTrack` caches bounds for viewport culling. |
 | [`network/`](src/main/java/com/lx862/mtrmap/network) | Protocol-v5 payloads and `NetworkSnapshotCodec` transfer routes, tracks and landmarks. `ServerNetworkCollector` reads MTR simulators on their own threads; `ClientNetworkSync` probes and requests snapshots, while `NetworkChunkAssembler` validates and reassembles chunks. |
 | [`integration/xaero/`](src/main/java/com/lx862/mtrmap/integration/xaero) | `XaeroRouteRenderer` draws tracks, route ribbons and map-only icons in world-map coordinates and handles hover tooltips. |
-| [`integration/journeymap/`](src/main/java/com/lx862/mtrmap/integration/journeymap) | Optional JourneyMap v2 plugin. `JourneyMapToolbar` supplies TRACKS/ROUTES buttons; `JourneyMapScreenProjection` follows pan/drag/zoom; `JourneyMapPathManager` draws viewport-culled pixel-width track and route quads; `JourneyMapForegroundRenderer` keeps landmark icons above both layers. Fullscreen `MarkerOverlay` objects retain hover information. |
+| [`integration/journeymap/`](src/main/java/com/lx862/mtrmap/integration/journeymap) | Optional JourneyMap v2 plugin for 1.20.1; JourneyMap 5 adapters for 1.20.4. `JourneyMapToolbar` supplies TRACKS/ROUTES buttons; `JourneyMapScreenProjection` follows pan/drag/zoom; `JourneyMapPathManager` draws viewport-culled pixel-width track and route quads; `JourneyMapForegroundRenderer` keeps landmark icons above both layers. Fullscreen `MarkerOverlay` objects retain hover information. |
 | [`mixin/`](src/main/java/com/lx862/mtrmap/mixin) | Access to MTR data and the Xaero render hook; Fabric supplies its own Xaero hook variant. |
 | [`config/`](src/main/java/com/lx862/mtrmap/config) and [`fabric/src/main/java/`](fabric/src/main/java) | Loader-specific configuration, initialization, client commands and network registration. |
 
 Data flow: MTR simulator/client data → dimension-specific `MapDataCache` → Xaero or JourneyMap fullscreen renderer. With a modded server, the client first probes dimension hashes, requests changed snapshots, validates and reassembles chunked payloads, then updates the cache. Without one, the cache falls back to MTR's radius-limited client data.
+
+### Version-specific adapters
+
+`compat/mc1204/` supplies Forge 49 networking, JourneyMap 5 plugin/events/toolbar, and an optional mixin after JourneyMap's `drawMap` method. The 1.20.4 foreground projection uses JourneyMap 5's grid renderer and active mouse drag; it runs before map controls are drawn. `gradle/minecraft-target.gradle` generates the two JourneyMap 5 data/presence adapters from shared source, translating only API namespaces, explicit marker IDs and UI enum sets. The common marker filters, MTR data and snapshot protocol remain shared. Fabric API is 0.92.6+1.20.1 or 0.97.3+1.20.4. Each version has a separate build directory.
 
 ## Troubleshooting
 

@@ -1,0 +1,40 @@
+// Both builds select the same target with -Pminecraft_version=1.20.4.
+ext.targetMinecraftVersion = project.findProperty('minecraft_version') ?: '1.20.1'
+if (!(targetMinecraftVersion in ['1.20.1', '1.20.4'])) {
+    throw new GradleException("Supported Minecraft targets: 1.20.1, 1.20.4; got ${targetMinecraftVersion}")
+}
+ext.legacyJourneyMap = targetMinecraftVersion == '1.20.4'
+ext.targetForgeVersion = gradle.startParameter.projectProperties['forge_version'] ?: (legacyJourneyMap ? '49.2.0' : '47.4.0')
+ext.targetForgeMajor = legacyJourneyMap ? '49' : '47'
+ext.targetPackFormat = legacyJourneyMap ? 22 : 15
+ext.journeyMapModVersion = legacyJourneyMap ? "1.20.4-5.10.0-${journeyMapLoader}" : "1.20.1-6.0.6+${journeyMapLoader}"
+ext.journeyMapMinimum = legacyJourneyMap ? '5.10.0' : '1.20.1-6.0.6'
+if (legacyJourneyMap) layout.buildDirectory = layout.projectDirectory.dir('build/mc1.20.4')
+
+// Only the API surface differs for these data builders. Generate the v1
+// variants from the shared implementation so marker/filter fixes stay shared.
+def sharedRoot = journeyMapLoader == 'forge' ? projectDir : file('..')
+def generated = layout.buildDirectory.dir('generated/sources/journeymap5')
+def packagePath = 'com/lx862/mtrmap/integration/journeymap'
+def adapterNames = ['JourneyMapLandmarkManager.java', 'JourneyMapIntegration.java']
+tasks.register('generateJourneyMap5Adapters') {
+    onlyIf { legacyJourneyMap }
+    inputs.files(adapterNames.collect { new File(sharedRoot, "src/main/java/${packagePath}/${it}") })
+    outputs.dir(generated)
+    doLast {
+        adapterNames.each { name ->
+            def source = new File(sharedRoot, "src/main/java/${packagePath}/${name}").getText('UTF-8')
+                    .replace('journeymap.api.v2.common.Context', 'journeymap.client.api.display.Context')
+                    .replace('journeymap.api.v2.client.', 'journeymap.client.api.')
+                    .replace('new MarkerOverlay(MTRMap.MOD_ID,', 'new MarkerOverlay(MTRMap.MOD_ID, java.util.UUID.randomUUID().toString(),')
+                    .replace('setActiveUIs(Context.UI.Fullscreen)', 'setActiveUIs(java.util.EnumSet.of(Context.UI.Fullscreen))')
+                    .replace('// v2 API generates the marker id internally; markerId is kept for logging only', '// Each sync replaces the previous marker set; v1 requires explicit unique IDs.')
+                    .replace('// MC 1.20.1 also has JourneyMap 5 releases without the v2 API.', '// Only invoke the legacy integration when its API is present.')
+            def output = new File(generated.get().asFile, "${packagePath}/${name}")
+            output.parentFile.mkdirs()
+            output.setText(source, 'UTF-8')
+        }
+    }
+}
+ext.journeyMap5GeneratedSources = generated
+ext.journeyMap5Overrides = adapterNames.collect { "${packagePath}/${it}" }

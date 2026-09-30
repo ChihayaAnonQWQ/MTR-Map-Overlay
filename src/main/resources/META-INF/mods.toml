@@ -1,5 +1,5 @@
 modLoader = "javafml"
-loaderVersion = "[47,)"
+loaderVersion = "[${forge_major},)"
 license = "MIT"
 issueTrackerURL = "https://github.com/teamCreating/MTR-Map-Overlay/issues"
 
@@ -14,7 +14,7 @@ authors = "BenLi06"
 [[dependencies.mtrmap]]
 modId = "forge"
 mandatory = true
-versionRange = "[47,)"
+versionRange = "[${forge_major},)"
 ordering = "NONE"
 side = "BOTH"
 
@@ -49,7 +49,7 @@ side = "CLIENT"
 [[dependencies.mtrmap]]
 modId = "journeymap"
 mandatory = false
-versionRange = "[1.20.1-6.0.6,)"
+versionRange = "[${journeymap_minimum},)"
 ordering = "AFTER"
 side = "CLIENT"
 

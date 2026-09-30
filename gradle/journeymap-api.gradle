@@ -1,7 +1,10 @@
 // JourneyMap 6 on MC 1.20.1 publishes its v2 API inside the mod JAR.
 // Extract that exact API as a compile-only local Maven artifact so ForgeGradle
 // and Loom can remap it. Never package JourneyMap or its API in our output.
-def apiVersion = "1.20.1-6.0.6-${journeyMapLoader}"
+// Forge JourneyMap 5 exposes its API directly in the mod JAR.
+if (legacyJourneyMap && journeyMapLoader == 'forge') return
+
+def apiVersion = legacyJourneyMap ? '1.20.4-5.10.0-fabric' : "1.20.1-6.0.6-${journeyMapLoader}"
 def repoRoot = layout.projectDirectory.dir('.gradle/bundled-api').asFile
 def artifactDir = new File(repoRoot, "bundled/journeymap/api/${apiVersion}")
 def apiJar = new File(artifactDir, "api-${apiVersion}.jar")
@@ -15,12 +18,13 @@ if (!apiJar.exists()) {
     artifactDir.mkdirs()
     // Do not resolve a Gradle configuration here: Loom finalizes its remapped
     // repository later and cannot mutate it after an early resolution.
-    def sha1 = journeyMapLoader == 'forge' ? 'a3d9009272c0e22d6057a7e5fbed1bfa17a4dea7' : 'ca50b1088522eaab0090df1dd1082d95dfd849b5'
-    def versionId = journeyMapLoader == 'forge' ? 'gryqmTt2' : '9Msq5MJs'
-    def bundle = new File(gradle.gradleUserHomeDir, "caches/modules-2/files-2.1/maven.modrinth/journeymap/1.20.1-6.0.6+${journeyMapLoader}/${sha1}/journeymap-1.20.1-6.0.6+${journeyMapLoader}.jar")
+    def sha1 = legacyJourneyMap ? '76ef4806c00614f79397b7fb1359d83996ca2469' : journeyMapLoader == 'forge' ? 'a3d9009272c0e22d6057a7e5fbed1bfa17a4dea7' : 'ca50b1088522eaab0090df1dd1082d95dfd849b5'
+    def versionId = legacyJourneyMap ? 'bV9yidYJ' : journeyMapLoader == 'forge' ? 'gryqmTt2' : '9Msq5MJs'
+    def bundle = new File(gradle.gradleUserHomeDir, "caches/modules-2/files-2.1/maven.modrinth/journeymap/${journeyMapModVersion}/${sha1}/journeymap-${journeyMapModVersion}.jar")
     if (!bundle.exists()) {
         bundle = new File(artifactDir, 'journeymap-bundle.jar')
-        def connection = new URI("https://cdn.modrinth.com/data/lfHFW1mp/versions/${versionId}/journeymap-${journeyMapLoader}-1.20.1-6.0.6.jar").toURL().openConnection()
+        def bundleFileName = legacyJourneyMap ? 'journeymap-1.20.4-5.10.0-fabric.jar' : "journeymap-${journeyMapLoader}-1.20.1-6.0.6.jar"
+        def connection = new URI("https://cdn.modrinth.com/data/lfHFW1mp/versions/${versionId}/${bundleFileName}").toURL().openConnection()
         connection.connectTimeout = 30000
         connection.readTimeout = 60000
         connection.getInputStream().withCloseable { input -> bundle.withOutputStream { it << input } }

@@ -1,3 +1,17 @@
+# 1.5.3 — MC 1.20.4 Forge/Fabric targets
+
+Add Forge 49.2.0 and Fabric MC 1.20.4 builds alongside the existing MC 1.20.1 builds, all targeting MTR 4.0.5. Select 1.20.4 with `-Pminecraft_version=1.20.4`; each version has its own output directory and exact Minecraft metadata.
+
+- Adapt Forge 49 channel registration, handler contexts and connection sends while retaining protocol v5.
+- Support JourneyMap 5.10.0 on both 1.20.4 loaders: legacy plugin discovery, native track/route buttons, fullscreen markers, and map foreground rendering before toolbar controls. Projection includes active map drag.
+- Keep landmark filtering and MTR data builders shared through generated API adapters; no map mod or API is bundled.
+- Declare the Fabric `journeymap` plugin entrypoint for both MC versions so JourneyMap can discover the integration.
+- Extend CI and artifact checks to all four targets, including version-specific metadata, JourneyMap API and production mixin hooks.
+
+No public release or in-game validation is included in this branch work. Map visuals, JourneyMap internal reflection, dedicated server startup and multiplayer still need manual validation.
+
+---
+
 # 1.5.2 — MC 1.20.1 compatibility branch
 
 Port the v1.5.1 map overlay to Forge and Fabric MC 1.20.1 with MTR 4.0.5. The main NeoForge/Fabric MC 1.21.1 branch remains separate.
