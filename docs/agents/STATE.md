@@ -1,8 +1,8 @@
 # STATE.md — MC 1.20 兼容分支权威状态
 
-- 最后更新：2026-09-30 18:57，操作者：Codex。
+- 最后更新：2026-10-01 17:43，操作者：Codex。
 - 分支：`compat/mtr-4.0-mc-1.20`；基于 main `6afde36`（v1.5.1）。
-- 版本：**v1.5.3**；mod ID `mtrmap`；包 `com.lx862.mtrmap`；客户端命令 `/mtrmap`。
+- 版本：**v1.5.4**；mod ID `mtrmap`；包 `com.lx862.mtrmap`；客户端命令 `/mtrmap`。
 - 主线继续保留 NeoForge/Fabric MC 1.21.1，独立 worktree `../mtrsurveyor` 未修改且工作区干净。
 
 ## 平台与依赖
@@ -41,16 +41,17 @@ Fabric 两版本均声明 `journeymap` 插件入口；不能只依赖 Forge 使�
 - 包测试覆盖真实消息编解码、中文维度、最大分块、异常长度和 hash 数量；保留寻路、轨道几何、地图投影、快照及分块重组测试。
 - `python tools/verify_artifacts.py` 与 `python tools/verify_artifacts.py --minecraft 1.20.4`：四目标元数据、Java 17、加载器隔离、未捆绑依赖、生产 Xaero 钩子、JourneyMap API/可选 mixin/Fabric 插件入口及测试报告通过。
 - 检查 JourneyMap 5 原始 Forge/Fabric JAR：绘制钩子、投影字段/方法和插件发现机制匹配当前发布包。CI 配置已覆盖四目标；没有把本地通过表述为远端 CI 已通过。
-- 没有启动 Minecraft；地图拖动/缩放、悬停、JourneyMap 内部反射字段、客户端回退、跨机器全网同步和独立服务端仍需实机验证。
+- Codex，2026-10-01：四目标开发环境独立服务端均启动至 Done；1.20.4 Forge/Fabric 客户端均收到 2 routes / 5 rails / 6 landmarks 全网快照；两地图四种开关、平移与缩放检查通过。Ben 于 2026-10-01 手动确认 Fabric 1.20.1 入服及 Xaero/JourneyMap 渲染、开关、平移和缩放正常。四目标本地开发运行实机检查完成，尚未验证 production JAR 启动或跨机器联机。
+- v1.5.4 修复 JourneyMap 5 工具栏旧 API 参数语义：第二参数为合法主题图标名，原有大写带空格的开关文案导致 ResourceLocationException、地图初始化中断及后续 charTyped 空指针。正在重验；早期两次客户端曾出现 glfw.dll 原生崩溃，最终回归未复现，原生根因未明；证据保留在隔离运行目录。
 
 ## 构建与产物
 
 默认构建 1.20.1；加 `-Pminecraft_version=1.20.4` 选择 1.20.4。PowerShell 中该参数需加引号。两加载器各自使用其 Gradle wrapper；完整命令见 README。
 
-- `build/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.1-1.5.3.jar`
-- `fabric/build/libs/CRTools-MTR-Map-Overlay-fabric-mc1.20.1-1.5.3.jar`
-- `build/mc1.20.4/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.4-1.5.3.jar`
-- `fabric/build/mc1.20.4/libs/CRTools-MTR-Map-Overlay-fabric-mc1.20.4-1.5.3.jar`
+- `build/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.1-1.5.4.jar`
+- `fabric/build/libs/CRTools-MTR-Map-Overlay-fabric-mc1.20.1-1.5.4.jar`
+- `build/mc1.20.4/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.4-1.5.4.jar`
+- `fabric/build/mc1.20.4/libs/CRTools-MTR-Map-Overlay-fabric-mc1.20.4-1.5.4.jar`
 
 ## 限制
 
@@ -58,4 +59,4 @@ Fabric 两版本均声明 `journeymap` 插件入口；不能只依赖 Forge 使�
 - MTR 元数据范围为 >=4.0.5 且 <4.1；只针对当前 4.0.5 做了构建验证。
 - 两加载器共享数据格式，但不宣称跨加载器联机兼容；需使用同加载器服务端/客户端。
 - 路径层只采样 TRAIN 模式；车辆实时位置未上图；洞穴层下线路悬浮沿用主线限制。
-- 未创建公共 release，未推回 main。
+- 兼容 JAR 将作为带有 v1.5.4 / MC / MTR / loader 标记的独立附件补入 GitHub v1.5.1 release；该 release 原 v1.5.1 二进制仍是 MC 1.21.1，正文将解释版本差异。没有新建 release/tag，也未推回 main。

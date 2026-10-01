@@ -19,6 +19,8 @@ MTR Map Overlay is a Minecraft 1.20.1 / 1.20.4 add-on for **Forge or Fabric**. I
 
 These are **map-only icons**, not ordinary Xaero waypoints: they do not fill the waypoint list, compass, minimap or in-world HUD. Multiple routes on one physical rail occupy adjacent colour bands rather than overwriting one another. Both map integrations draw physical rails first, coloured routes on top, and station/platform icons last. In JourneyMap, the entire layer follows the map's live drag and zoom transform; track width matches Xaero's screen-pixel style.
 
+The [v1.5.1 GitHub release](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1) also carries four MC 1.20 compatibility JARs built as mod version **1.5.4**. Their filenames state the exact Minecraft target, MTR range and loader; the original v1.5.1 assets remain MC 1.21.1.
+
 When the mod is installed on the server as well as the client, it can request a **whole-network snapshot** for each dimension. Without the server component it still works, but can show only the nearby data MTR has sent to the client. Xaero and JourneyMap are optional integrations; install either or both.
 
 ## Requirements and installation
@@ -31,12 +33,12 @@ When the mod is installed on the server as well as the client, it can request a 
 | Map mod | Xaero's World Map 1.45.0+; JourneyMap 6.0.6+ (1.20.1) or 5.10.0 (1.20.4), for the same MC and loader |
 | Xaero's Minimap | Optional; used only to remove old `[MTR]` waypoints created by earlier releases |
 
-1. Build or download the **Forge** or **Fabric** JAR for your exact Minecraft version (1.20.1 / 1.20.4) JAR for this branch. Install one matching loader build in the client's `mods` directory. This branch is based on v1.5.1 and uses version **1.5.3**. The `main` branch continues to target NeoForge/Fabric MC 1.21.1.
+1. Build or download the **Forge** or **Fabric** JAR for your exact Minecraft version (1.20.1 / 1.20.4) for this branch. Install one matching loader build in the client's `mods` directory. This branch is based on v1.5.1 and uses version **1.5.4**. The `main` branch continues to target NeoForge/Fabric MC 1.21.1.
 2. Install MTR and your chosen map mod for that same loader. Fabric additionally needs Fabric API.
 3. Optionally install the matching MTR Map Overlay JAR and MTR on the server to enable the whole-network view. Client and server must use the `mtrmap` mod ID; older `mtrsurveyor` builds are not compatible with this release.
 4. Open Xaero's World Map or JourneyMap's fullscreen map. Both maps have matching `ROUTES` and `TRACKS` icons (green left bar = on, red = off); JourneyMap puts them in its add-on button panel. The `/mtrmap config routeLines` and `trackLines` switches apply to both maps. Hover over a line or icon for details.
 
-The server component is optional. This branch provides separate JARs for **MC 1.20.1 and 1.20.4**, each requiring its exact Minecraft version and MTR >=4.0.5, <4.1. Forge and Fabric share protocol-v5 snapshot encoding, with separate loader transports; cross-loader connections are not claimed. Builds and headless tests do not verify in-game rendering or multiplayer behaviour.
+The server component is optional. This branch provides separate JARs for **MC 1.20.1 and 1.20.4**, each requiring its exact Minecraft version and MTR >=4.0.5, <4.1. Forge and Fabric share protocol-v5 snapshot encoding, with separate loader transports; cross-loader connections are not claimed. Local development-runtime checks are documented in [MC 1.20 runtime QA](docs/validation/mc120-runtime.md); production-JAR launch and cross-machine play are outside that check.
 
 ## Commands and configuration
 
@@ -63,12 +65,16 @@ Run Gradle with JDK 21. Both builds compile mod classes for Java 17 (both Minecr
 
 | Loader | Windows | macOS / Linux | Output |
 | --- | --- | --- | --- |
-| Forge 1.20.1 | `.\gradlew.bat build` | `./gradlew build` | `build/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.1-1.5.3.jar` |
-| Fabric 1.20.1 | `.\fabric\gradlew.bat -p fabric build` | `./fabric/gradlew -p fabric build` | `fabric/build/libs/CRTools-MTR-Map-Overlay-fabric-mc1.20.1-1.5.3.jar` |
-| Forge 1.20.4 | `.\gradlew.bat build "-Pminecraft_version=1.20.4"` | `./gradlew build -Pminecraft_version=1.20.4` | `build/mc1.20.4/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.4-1.5.3.jar` |
-| Fabric 1.20.4 | `.\fabric\gradlew.bat -p fabric build "-Pminecraft_version=1.20.4"` | `./fabric/gradlew -p fabric build -Pminecraft_version=1.20.4` | `fabric/build/mc1.20.4/libs/CRTools-MTR-Map-Overlay-fabric-mc1.20.4-1.5.3.jar` |
+| Forge 1.20.1 | `.\gradlew.bat build` | `./gradlew build` | `build/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.1-1.5.4.jar` |
+| Fabric 1.20.1 | `.\fabric\gradlew.bat -p fabric build` | `./fabric/gradlew -p fabric build` | `fabric/build/libs/CRTools-MTR-Map-Overlay-fabric-mc1.20.1-1.5.4.jar` |
+| Forge 1.20.4 | `.\gradlew.bat build "-Pminecraft_version=1.20.4"` | `./gradlew build -Pminecraft_version=1.20.4` | `build/mc1.20.4/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.4-1.5.4.jar` |
+| Fabric 1.20.4 | `.\fabric\gradlew.bat -p fabric build "-Pminecraft_version=1.20.4"` | `./fabric/gradlew -p fabric build -Pminecraft_version=1.20.4` | `fabric/build/mc1.20.4/libs/CRTools-MTR-Map-Overlay-fabric-mc1.20.4-1.5.4.jar` |
 
 All four targets run the shared JUnit tests. Check the packaged JARs with `python tools/verify_artifacts.py` and `python tools/verify_artifacts.py --minecraft 1.20.4`. The test-world generator is opt-in and is skipped during ordinary builds. Forge uses Gradle 8.8 / ForgeGradle 6.0.54; Fabric uses Gradle 9.5.0 / Loom 1.17.21. The bundled JourneyMap API is extracted and remapped for compilation only; it is not shipped inside this mod. A successful build does not replace an in-game compatibility check, especially when Xaero's internal map renderer changes.
+
+## Isolated runtime checks
+
+Use `-PmtrmapRuntimeTest=true` with `runClient` / `runServer` to load matching MTR and map dependencies for local QA. Add `-PmtrmapRunDir=<absolute test directory>` to isolate saves and settings. Servers also use `-PmtrmapServerOnly=true`; clients can use `-PquickplayServer=127.0.0.1:<port>` (Forge 1.20.1 should join from the normal server list first). Select Minecraft and use the loader's own wrapper as in the build table above. See [runtime evidence and limitations](docs/validation/mc120-runtime.md).
 
 ## Source guide
 

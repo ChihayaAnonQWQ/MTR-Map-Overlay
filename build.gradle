@@ -12,11 +12,14 @@ minecraft {
     mappings channel: 'official', version: project.minecraft_version
     runs {
         client {
-            workingDirectory project.file('run')
+            workingDirectory project.file(project.findProperty('mtrmapRunDir') ?: 'run')
+            if (project.hasProperty('quickplayServer')) args '--quickPlayMultiplayer', project.property('quickplayServer')
+            else if (project.hasProperty('quickplay')) args '--quickPlaySingleplayer', project.property('quickplay')
             mods { mtrmap { source sourceSets.main } }
         }
         server {
-            workingDirectory project.file('run-server')
+            workingDirectory project.file(project.findProperty('mtrmapRunDir') ?: 'run-server')
+            args 'nogui'
             mods { mtrmap { source sourceSets.main } }
         }
     }
@@ -44,6 +47,7 @@ dependencies {
 test {
     useJUnitPlatform()
     systemProperty 'mtrmap.generateTestWorld', project.findProperty('mtrmapGenerateTestWorld') ?: 'false'
+    systemProperty 'mtrmap.testWorldMtrPath', project.findProperty('mtrmapTestWorldMtrPath') ?: 'run/saves/TestWorld/mtr'
 }
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 processResources {
@@ -60,6 +64,40 @@ jar {
 
 
 apply from: 'gradle/journeymap-api.gradle'
+
+// Opt-in runtime dependencies for isolated local smoke tests.
+if (project.hasProperty('mtrmapRuntimeTest')) {
+    dependencies {
+        runtimeOnly fg.deobf("maven.modrinth:minecraft-transit-railway:FORGE-${mtr_version}+${minecraft_version}")
+        if (!project.hasProperty('mtrmapServerOnly')) {
+            runtimeOnly fg.deobf("maven.modrinth:xaeros-world-map:forge-${minecraft_version}-1.45.0")
+            runtimeOnly fg.deobf("maven.modrinth:xaeros-minimap:forge-${minecraft_version}-26.4.2")
+            runtimeOnly fg.deobf("maven.modrinth:journeymap:${journeyMapModVersion}")
+        }
+    }
+    // Forge 49 discovers development mods by their mods.toml classpath entry.
+    // Supply one directory containing both classes and metadata.
+    def smokeSource = sourceSets.create('runtimeSmoke')
+    def mergedSmokeMod = tasks.register('mergeSmokeMod', Sync) {
+        dependsOn tasks.named('classes')
+        from sourceSets.main.output
+        into layout.buildDirectory.dir('runtime-mod')
+    }
+    tasks.withType(JavaExec).configureEach {
+        if (name in ['runClient', 'runServer']) {
+            dependsOn mergedSmokeMod
+            doFirst {
+                def smokeRun = runConfig.get()
+                smokeRun.mods.clear()
+                smokeRun.sources.clear()
+                smokeRun.source(smokeSource)
+                classpath = files(layout.buildDirectory.dir('runtime-mod')) + configurations.runtimeClasspath
+                if (legacyJourneyMap) environment.remove('MOD_CLASSES')
+                else smokeRun.environment('MOD_CLASSES', 'mtrmap%%' + layout.buildDirectory.dir('runtime-mod').get().asFile.absolutePath)
+            }
+        }
+    }
+}
 
 if (legacyJourneyMap) {
     def common = fileTree('compat/mc1204/common/java')

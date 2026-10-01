@@ -28,6 +28,7 @@ public final class JourneyMapForegroundRenderer {
     }
 
     public static void render(GuiGraphics graphics, Object screen) {
+        JourneyMapToolbar.refreshButtons();
         final IFullscreen fullscreen = (IFullscreen) screen;
         final Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null || fullscreen.getUiState() == null

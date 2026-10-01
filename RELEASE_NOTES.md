@@ -1,3 +1,13 @@
+# 1.5.4 — JourneyMap 5 runtime fixes and isolated QA
+
+Opening JourneyMap on MC 1.20.4 previously supplied toggle text as a theme icon path. Invalid uppercase/space characters interrupted fullscreen initialization, hid the add-on buttons, and could cause a later chat-input crash. The adapter now uses valid theme icon names before replacing them with MTR textures, updates native toggle state only when it changes, and restores custom textures after JourneyMap reloads button themes.
+
+Opt-in Forge/Fabric runtime profiles install matching test dependencies, merge Forge development classes with metadata, and expose isolated client/server directories. Fabric extracts the pinned nested JourneyMap API and XaeroLib into local Maven modules so Loom can resolve their class hierarchy during remapping. These dependencies remain external to release JARs.
+
+Runtime validation is recorded in `docs/validation/mc120-runtime.md`. These four v1.5.4 compatibility JARs are attached to the existing v1.5.1 GitHub release with explicit MC/MTR/loader labels; no separate v1.5.4 release or tag is created.
+
+---
+
 # 1.5.3 — MC 1.20.4 Forge/Fabric targets
 
 Add Forge 49.2.0 and Fabric MC 1.20.4 builds alongside the existing MC 1.20.1 builds, all targeting MTR 4.0.5. Select 1.20.4 with `-Pminecraft_version=1.20.4`; each version has its own output directory and exact Minecraft metadata.

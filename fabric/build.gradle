@@ -28,9 +28,9 @@ dependencies {
     mappings loom.officialMojangMappings()
     modImplementation 'net.fabricmc:fabric-loader:0.16.14'
     modImplementation "net.fabricmc.fabric-api:fabric-api:${legacyJourneyMap ? '0.97.3+1.20.4' : '0.92.6+1.20.1'}"
-    modCompileOnly "maven.modrinth:minecraft-transit-railway:FABRIC-4.0.5+${mcVersion}"
-    modCompileOnly "maven.modrinth:xaeros-minimap:fabric-${mcVersion}-26.4.2"
-    modCompileOnly "maven.modrinth:xaeros-world-map:fabric-${mcVersion}-1.45.0"
+    add(project.hasProperty('mtrmapRuntimeTest') ? 'modImplementation' : 'modCompileOnly', "maven.modrinth:minecraft-transit-railway:FABRIC-4.0.5+${mcVersion}")
+    add(project.hasProperty('mtrmapRuntimeTest') && !project.hasProperty('mtrmapServerOnly') ? 'modImplementation' : 'modCompileOnly', "maven.modrinth:xaeros-minimap:fabric-${mcVersion}-26.4.2")
+    add(project.hasProperty('mtrmapRuntimeTest') && !project.hasProperty('mtrmapServerOnly') ? 'modImplementation' : 'modCompileOnly', "maven.modrinth:xaeros-world-map:fabric-${mcVersion}-1.45.0")
 
     compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
     testImplementation "maven.modrinth:minecraft-transit-railway:FABRIC-4.0.5+${mcVersion}"
@@ -42,6 +42,7 @@ sourceSets.test.java.srcDir('../src/test/java')
 test {
     useJUnitPlatform()
     systemProperty 'mtrmap.generateTestWorld', project.findProperty('mtrmapGenerateTestWorld') ?: 'false'
+    systemProperty 'mtrmap.testWorldMtrPath', project.findProperty('mtrmapTestWorldMtrPath') ?: 'run/saves/TestWorld/mtr'
 }
 sourceSets.main.resources.srcDir('../src/main/resources')
 sourceSets.main.resources.exclude('META-INF/mods.toml', 'mtrmap.mixins.json')
@@ -61,6 +62,61 @@ processResources {
 jar { manifest.attributes('MixinConfigs': 'mtrmap.fabric.mixins.json') }
 
 apply from: '../gradle/journeymap-api.gradle'
+
+if (project.hasProperty('mtrmapRuntimeTest')) {
+    dependencies {
+        if (!project.hasProperty('mtrmapServerOnly')) {
+            modImplementation "maven.modrinth:journeymap:${journeyMapModVersion}"
+            // Loom does not discover this nested dependency from a development classpath.
+            def libVersion = "${mcVersion}-1.7.1"
+            def libDir = file(".gradle/bundled-api/bundled/xaero/lib/${libVersion}")
+            def libJar = new File(libDir, "lib-${libVersion}.jar")
+            if (!libJar.exists()) {
+                libDir.mkdirs()
+                // Early Gradle resolution freezes Loom's remapped repository. Read the
+                // pinned bundle directly, verifying it before extracting the nested library.
+                def bundleVersion = "fabric-${mcVersion}-1.45.0"
+                def sha1 = legacyJourneyMap ? '8ee17a8d80b515cb5f67d6363f575812f90d88b0' : '7cb6fa8e6acfe940b5da651fdab22015c1a57c8d'
+                def bundleName = "xaeros-world-map-${bundleVersion}.jar"
+                def bundle = new File(gradle.gradleUserHomeDir, "caches/modules-2/files-2.1/maven.modrinth/xaeros-world-map/${bundleVersion}/${sha1}/${bundleName}")
+                if (!bundle.exists()) {
+                    bundle = new File(libDir, 'xaero-bundle.jar')
+                    def connection = new URI("https://api.modrinth.com/maven/maven/modrinth/xaeros-world-map/${bundleVersion}/${bundleName}").toURL().openConnection()
+                    connection.connectTimeout = 30000
+                    connection.readTimeout = 60000
+                    connection.getInputStream().withCloseable { input -> bundle.withOutputStream { it << input } }
+                }
+                def digest = java.security.MessageDigest.getInstance('SHA-1')
+                bundle.withInputStream { input ->
+                    byte[] buffer = new byte[8192]
+                    int length
+                    while ((length = input.read(buffer)) != -1) digest.update(buffer, 0, length)
+                }
+                if (digest.digest().encodeHex().toString() != sha1) throw new GradleException('Xaero bundle checksum mismatch')
+                new java.util.zip.ZipFile(bundle).withCloseable { zip ->
+                    def entry = zip.entries().find { it.name.startsWith('META-INF/jars/xaerolib-') && it.name.endsWith('.jar') }
+                    if (entry == null) throw new GradleException('Xaero bundle contains no library JAR')
+                    zip.getInputStream(entry).withCloseable { input -> libJar.withOutputStream { it << input } }
+                }
+            }
+            new File(libDir, "lib-${libVersion}.pom").text = "<project><modelVersion>4.0.0</modelVersion><groupId>bundled.xaero</groupId><artifactId>lib</artifactId><version>${libVersion}</version></project>"
+            // A Maven module joins Loom's dependency remapping classpath; a loose file
+            // is processed later and leaves inherited Screen fields in intermediary names.
+            modImplementation "bundled.xaero:lib:${libVersion}"
+        }
+    }
+    loom.runs {
+        client {
+            runDir project.findProperty('mtrmapRunDir') ?: 'run'
+            if (project.hasProperty('quickplayServer')) programArgs '--quickPlayMultiplayer', project.property('quickplayServer')
+            else if (project.hasProperty('quickplay')) programArgs '--quickPlaySingleplayer', project.property('quickplay')
+        }
+        server {
+            runDir project.findProperty('mtrmapRunDir') ?: 'run-server'
+            programArgs 'nogui'
+        }
+    }
+}
 
 if (legacyJourneyMap) {
     def common = fileTree('../compat/mc1204/common/java')

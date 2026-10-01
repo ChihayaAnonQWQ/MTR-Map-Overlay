@@ -34,7 +34,7 @@ import java.util.Map;
 @org.junit.jupiter.api.condition.EnabledIfSystemProperty(named = "mtrmap.generateTestWorld", matches = "true")
 class TestWorldGeneratorTest {
 
-    private static final Path WORLD_MTR = Path.of("run/saves/TestWorld/mtr");
+    private static final Path WORLD_MTR = Path.of(System.getProperty("mtrmap.testWorldMtrPath", "run/saves/TestWorld/mtr"));
     private static final String DIMENSION = "minecraft/overworld";
 
     private static void deleteRecursively(java.io.File file) {

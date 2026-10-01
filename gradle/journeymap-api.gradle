@@ -10,11 +10,15 @@ def artifactDir = new File(repoRoot, "bundled/journeymap/api/${apiVersion}")
 def apiJar = new File(artifactDir, "api-${apiVersion}.jar")
 repositories { maven { url = repoRoot.toURI() } }
 dependencies {
-    if (journeyMapLoader == 'forge') compileOnly fg.deobf("bundled.journeymap:api:${apiVersion}")
-    else modCompileOnly "bundled.journeymap:api:${apiVersion}"
+    if (journeyMapLoader == 'forge') {
+        if (project.hasProperty('mtrmapRuntimeTest') && !project.hasProperty('mtrmapServerOnly')) {
+            runtimeOnly fg.deobf("bundled.journeymap:api:${apiVersion}")
+        }
+        compileOnly fg.deobf("bundled.journeymap:api:${apiVersion}")
+    } else add(project.hasProperty('mtrmapRuntimeTest') && !project.hasProperty('mtrmapServerOnly') ? 'modImplementation' : 'modCompileOnly', "bundled.journeymap:api:${apiVersion}")
 }
 
-if (!apiJar.exists()) {
+def checkedJourneyMapBundle = {
     artifactDir.mkdirs()
     // Do not resolve a Gradle configuration here: Loom finalizes its remapped
     // repository later and cannot mutate it after an early resolution.
@@ -36,6 +40,11 @@ if (!apiJar.exists()) {
         while ((length = input.read(buffer)) != -1) digest.update(buffer, 0, length)
     }
     if (digest.digest().encodeHex().toString() != sha1) throw new GradleException('JourneyMap bundle checksum mismatch')
+    return bundle
+}
+
+if (!apiJar.exists()) {
+    def bundle = checkedJourneyMapBundle()
     new java.util.zip.ZipFile(bundle).withCloseable { zip ->
         def entry = zip.entries().find { it.name.contains('/journeymap-api-') && it.name.endsWith('.jar') }
         if (entry == null) throw new GradleException('JourneyMap bundle contains no API JAR')
@@ -44,3 +53,21 @@ if (!apiJar.exists()) {
     new File(artifactDir, "api-${apiVersion}.pom").text = """<project><modelVersion>4.0.0</modelVersion><groupId>bundled.journeymap</groupId><artifactId>api</artifactId><version>${apiVersion}</version></project>"""
 }
 
+// Fabric's development launcher needs JourneyMap 6's nested runtime libraries
+// as explicit dependencies. They remain absent from ordinary release builds.
+if (journeyMapLoader == 'fabric' && !legacyJourneyMap && project.hasProperty('mtrmapRuntimeTest') && !project.hasProperty('mtrmapServerOnly')) {
+    ['commonnetwork': 'common-networking-fabric-', 'pngj': 'pngj-'].each { artifact, prefix ->
+        def moduleDir = new File(repoRoot, "bundled/journeymap/${artifact}/${apiVersion}")
+        def moduleJar = new File(moduleDir, "${artifact}-${apiVersion}.jar")
+        if (!moduleJar.exists()) {
+            moduleDir.mkdirs()
+            new java.util.zip.ZipFile(checkedJourneyMapBundle()).withCloseable { zip ->
+                def entry = zip.entries().find { it.name.startsWith("META-INF/jars/${prefix}") && it.name.endsWith('.jar') }
+                if (entry == null) throw new GradleException("JourneyMap bundle contains no ${artifact} JAR")
+                zip.getInputStream(entry).withCloseable { input -> moduleJar.withOutputStream { it << input } }
+            }
+        }
+        new File(moduleDir, "${artifact}-${apiVersion}.pom").text = "<project><modelVersion>4.0.0</modelVersion><groupId>bundled.journeymap</groupId><artifactId>${artifact}</artifactId><version>${apiVersion}</version></project>"
+        dependencies.add(artifact == 'commonnetwork' ? 'modImplementation' : 'runtimeOnly', "bundled.journeymap:${artifact}:${apiVersion}")
+    }
+}

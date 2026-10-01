@@ -42,9 +42,9 @@ final class JourneyMapToolbar {
     static void addButtons(ThemeButtonDisplay display) {
         final boolean tracksEnabled = MTRMapConfig.INSTANCE.trackLinesEnabled.get();
         final boolean routesEnabled = MTRMapConfig.INSTANCE.routeLinesEnabled.get();
-        trackButton = display.addThemeToggleButton("TRACKS ON", "TRACKS OFF",
+        trackButton = display.addThemeToggleButton("TRACKS", "grid",
                 tracksEnabled, button -> toggle(true));
-        routeButton = display.addThemeToggleButton("ROUTES ON", "ROUTES OFF",
+        routeButton = display.addThemeToggleButton("ROUTES", "grid",
                 routesEnabled, button -> toggle(false));
         trackIconEnabled = tracksEnabled;
         routeIconEnabled = routesEnabled;
@@ -57,19 +57,19 @@ final class JourneyMapToolbar {
     static void refreshButtons() {
         if (trackButton != null) {
             final boolean enabled = MTRMapConfig.INSTANCE.trackLinesEnabled.get();
-            trackButton.setToggled(enabled);
             if (!Boolean.valueOf(enabled).equals(trackIconEnabled)) {
-                updateIcon(trackButton, enabled ? TRACK_ICON_ON : TRACK_ICON_OFF);
+                trackButton.setToggled(enabled);
                 trackIconEnabled = enabled;
             }
+            updateIcon(trackButton, enabled ? TRACK_ICON_ON : TRACK_ICON_OFF);
         }
         if (routeButton != null) {
             final boolean enabled = MTRMapConfig.INSTANCE.routeLinesEnabled.get();
-            routeButton.setToggled(enabled);
             if (!Boolean.valueOf(enabled).equals(routeIconEnabled)) {
-                updateIcon(routeButton, enabled ? ROUTE_ICON_ON : ROUTE_ICON_OFF);
+                routeButton.setToggled(enabled);
                 routeIconEnabled = enabled;
             }
+            updateIcon(routeButton, enabled ? ROUTE_ICON_ON : ROUTE_ICON_OFF);
         }
     }
 
@@ -97,7 +97,7 @@ final class JourneyMapToolbar {
     }
 
     private static void updateIcon(IThemeButton button, ResourceLocation icon) {
-// JourneyMap 5 accepts theme icon names, so supply our cached resource texture directly.
+        // JourneyMap 5 accepts theme icon names, so supply our cached resource texture directly.
         try {
             if (!iconAccessAttempted) {
                 iconAccessAttempted = true;
@@ -108,7 +108,11 @@ final class JourneyMapToolbar {
                         .getMethod("getTexture", ResourceLocation.class);
             }
             final Object texture = loadThemeTexture.invoke(null, icon);
-            themeTextureField.set(button.getButton(), texture);
+            // JourneyMap may reload all button themes after an add-on action.
+            // Restore only a replaced icon, without resetting the native toggle each frame.
+            if (themeTextureField.get(button.getButton()) != texture) {
+                themeTextureField.set(button.getButton(), texture);
+            }
         } catch (ReflectiveOperationException | RuntimeException e) {
             if (!iconWarningLogged) {
                 iconWarningLogged = true;
