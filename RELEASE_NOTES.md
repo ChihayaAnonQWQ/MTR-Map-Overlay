@@ -1,14 +1,14 @@
-# 1.5.4 — JourneyMap 5 runtime fixes and isolated QA
+# MC 1.20 compatibility builds — mod version 1.5.1
 
 Opening JourneyMap on MC 1.20.4 previously supplied toggle text as a theme icon path. Invalid uppercase/space characters interrupted fullscreen initialization, hid the add-on buttons, and could cause a later chat-input crash. The adapter now uses valid theme icon names before replacing them with MTR textures, updates native toggle state only when it changes, and restores custom textures after JourneyMap reloads button themes.
 
 Opt-in Forge/Fabric runtime profiles install matching test dependencies, merge Forge development classes with metadata, and expose isolated client/server directories. Fabric extracts the pinned nested JourneyMap API and XaeroLib into local Maven modules so Loom can resolve their class hierarchy during remapping. These dependencies remain external to release JARs.
 
-Runtime validation is recorded in `docs/validation/mc120-runtime.md`. These four v1.5.4 compatibility JARs are attached to the existing v1.5.1 GitHub release with explicit MC/MTR/loader labels; no separate v1.5.4 release or tag is created.
+Runtime validation is recorded in `docs/validation/mc120-runtime.md`. The four Forge/Fabric compatibility JARs keep mod, pack, and metadata version 1.5.1 and are attached to the existing v1.5.1 GitHub release with explicit MC/MTR/loader labels.
 
 ---
 
-# 1.5.3 — MC 1.20.4 Forge/Fabric targets
+# MC 1.20.4 Forge/Fabric targets
 
 Add Forge 49.2.0 and Fabric MC 1.20.4 builds alongside the existing MC 1.20.1 builds, all targeting MTR 4.0.5. Select 1.20.4 with `-Pminecraft_version=1.20.4`; each version has its own output directory and exact Minecraft metadata.
 
@@ -18,13 +18,13 @@ Add Forge 49.2.0 and Fabric MC 1.20.4 builds alongside the existing MC 1.20.1 bu
 - Declare the Fabric `journeymap` plugin entrypoint for both MC versions so JourneyMap can discover the integration.
 - Extend CI and artifact checks to all four targets, including version-specific metadata, JourneyMap API and production mixin hooks.
 
-No public release or in-game validation is included in this branch work. Map visuals, JourneyMap internal reflection, dedicated server startup and multiplayer still need manual validation.
+Compatibility artifacts retain mod, pack, and metadata version 1.5.1. Map visuals and server startup are recorded in `docs/validation/mc120-runtime.md`; production JAR startup and cross-machine multiplayer remain unverified.
 
 ---
 
-# 1.5.2 — MC 1.20.1 compatibility branch
+# MC 1.20.1 compatibility targets
 
-Port the v1.5.1 map overlay to Forge and Fabric MC 1.20.1 with MTR 4.0.5. The main NeoForge/Fabric MC 1.21.1 branch remains separate.
+Port the 1.5.1 map overlay to Forge and Fabric MC 1.20.1 with MTR 4.0.5. The main NeoForge/Fabric MC 1.21.1 branch remains separate.
 
 - Restore Java 17-compatible rendering, resource IDs, tooltip colours and MTR 4.0 package names.
 - Adapt full-network sync to optional Forge SimpleChannel and Fabric 1.20 packet receivers; retain protocol-v5 snapshots, hashes and bounded chunk reassembly.

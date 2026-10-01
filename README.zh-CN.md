@@ -1,6 +1,6 @@
 # MTR Map Overlay — MC 1.20 兼容分支
 
-分支：`compat/mtr-4.0-mc-1.20`，版本：**1.5.4**。从主线 v1.5.1 移植，主线仍支持 NeoForge/Fabric 1.21.1。
+分支：`compat/mtr-4.0-mc-1.20`，版本：**1.5.1**。从主线 v1.5.1 移植，主线仍支持 NeoForge/Fabric 1.21.1。
 
 ## 支持版本
 
@@ -35,10 +35,10 @@
 
 产物：
 
-- `build/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.1-1.5.4.jar`
-- `fabric/build/libs/CRTools-MTR-Map-Overlay-fabric-mc1.20.1-1.5.4.jar`
-- `build/mc1.20.4/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.4-1.5.4.jar`
-- `fabric/build/mc1.20.4/libs/CRTools-MTR-Map-Overlay-fabric-mc1.20.4-1.5.4.jar`
+- `build/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.1-1.5.1.jar`
+- `fabric/build/libs/CRTools-MTR-Map-Overlay-fabric-mc1.20.1-1.5.1.jar`
+- `build/mc1.20.4/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.4-1.5.1.jar`
+- `fabric/build/mc1.20.4/libs/CRTools-MTR-Map-Overlay-fabric-mc1.20.4-1.5.1.jar`
 
 只安装对应加载器的一份 JAR。Forge 使用 Gradle 8.8 / ForgeGradle 6.0.54；Fabric 使用 Gradle 9.5.0 / Loom 1.17.21。JourneyMap 发布包内的 v2 API 会按原包校验、提取并重映射作为编译依赖，不打包进本模组。
 

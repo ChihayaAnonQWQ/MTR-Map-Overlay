@@ -47,9 +47,9 @@
 - 完成：Codex，2026-09-30 18:15。双构建及每平台 25 项测试、产物检查通过；实现 commit `4b3963e`。MC 1.20.4 尚未移植，实机验证待 Ben 完成。
 
 ## [完成] MC 1.20.4 Forge/Fabric 扩展
-- 操作者：Codex，2026-09-30 18:58。代码 commit `5652056` 已推送兼容分支；v1.5.3 覆盖 MC 1.20.1 / 1.20.4、Forge/Fabric 四目标，各 25 项测试及产物检查通过。新增 Forge 49 / JourneyMap 5 适配，并修正 Fabric 两版本的 JourneyMap 插件入口；main 未改。实机检查由 Ben 手动完成。
+- 操作者：Codex，2026-09-30 18:58。代码 commit `5652056` 已推送兼容分支；保持 mod 版本 1.5.1，覆盖 MC 1.20.1 / 1.20.4、Forge/Fabric 四目标，各 25 项测试及产物检查通过。新增 Forge 49 / JourneyMap 5 适配，并修正 Fabric 两版本的 JourneyMap 插件入口；main 未改。实机检查由 Ben 手动完成。
 
 ## [完成] MC 1.20 实机与独立服务端检查、兼容 JAR 补发
 - 操作者：Codex，2026-10-01 17:47。四目标独立服务端均完成开发环境启动；Xaero / JourneyMap 地图、四种图层状态、平移与缩放通过自动或用户手动验证。MTR 4.0.5 测试网格为 2 routes / 5 rails / 6 landmarks。
-- v1.5.4 修复 JourneyMap 5 工具栏 icon 参数造成的初始化异常。四目标 build、每个 25 项测试与产物检查通过。
-- 代码/QA commit `4fce1a6` 已推送。本次打包的四个带 MC / MTR / loader 明确标记的 JAR 已加入 GitHub v1.5.1 release；保留原两个附件并更新中英文说明。production JAR 独立启动和跨机器联机未验证。
+- MC 1.20.4 JourneyMap 5 工具栏 icon 参数修复初始化异常。四目标 build、每个 25 项测试与产物检查通过；mod、pack、metadata 均为 1.5.1。
+- 代码/QA commit `4fce1a6` 已推送。本次打包的四个以 1.5.1 标注并包含 MC / MTR / loader 范围的 JAR 已加入 GitHub v1.5.1 release；保留原两个附件并更新中英文说明。production JAR 独立启动和跨机器联机未验证。

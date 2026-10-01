@@ -2,15 +2,15 @@
 
 ## [2026-10-01 17:47] Codex — 补发 MC 1.20 兼容 JAR
 
-- 四目标 v1.5.4 Forge/Fabric JAR 均完成 build；每目标 25 项共用测试、MC/Java/loader 元数据与产物隔离校验通过。所有本地运行时检查结束，Fabric 1.20.1 入服和两地图由 Ben 手动确认。
+- 四目标 Forge/Fabric JAR 均完成 build（mod/pack/metadata 版本 1.5.1）；每目标 25 项共用测试、MC/Java/loader 元数据与产物隔离校验通过。所有本地运行时检查结束，Fabric 1.20.1 入服和两地图由 Ben 手动确认。
 - 修复 JourneyMap 5 错误图标参数；代码及验证文档 commit `4fce1a6` 已推送兼容分支。
-- 四个新附件已上传至既有 GitHub [v1.5.1 release](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1)：文件名注明 mod v1.5.4、精确 MC 1.20.1 / 1.20.4、MTR 4.0.5-4.0.x、Forge/Fabric。原有 v1.5.1 两个 MC 1.21.1 附件未覆盖；release 正文已解释两组目标。
+- 四个新附件已上传至既有 GitHub [v1.5.1 release](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1)：文件名注明 mod v1.5.1、精确 MC 1.20.1 / 1.20.4、MTR 4.0.5-4.0.x、Forge/Fabric。原有 v1.5.1 两个 MC 1.21.1 附件未覆盖；release 正文已解释两组目标。
 - production JAR 启动和跨机器联机仍需额外验证；main 未改。
 
 
 ## [2026-09-30 18:58] Codex — 兼容分支补齐 MC 1.20.4 双平台
 
-- 代码 commit `5652056` 已推送 `compat/mtr-4.0-mc-1.20`；v1.5.3 同时构建 MC 1.20.1 / 1.20.4 的 Forge/Fabric 产物。每份 JAR 严格匹配对应 MC 版本。
+- 代码 commit `5652056` 已推送 `compat/mtr-4.0-mc-1.20`；同时构建 MC 1.20.1 / 1.20.4 的 Forge/Fabric 产物。每份 JAR 严格匹配对应 MC 版本。
 - 1.20.4 增加 Forge 49.2.0 网络接口及 JourneyMap 5.10.0 插件、地图按钮、前景绘制；地标数据/过滤逻辑保持共享。Fabric 两版本均补上必需的 `journeymap` 插件入口。
 - 四目标 build 各 25 项共用测试通过；两版本产物检查通过，CI 配置扩展为四目标。默认构建 1.20.1，加 `-Pminecraft_version=1.20.4` 构建独立版本，PowerShell 中该参数加引号。
 - 没有启动 Minecraft 或创建公共 release。main 1.21.1 worktree 干净，禁止将本分支旧版本适配覆盖回 main。地图视觉、独立服务端与联机待 Ben 实机验证；任务已释放。
@@ -20,7 +20,7 @@
 > ```
 > ## [2026-09-30 18:15] Codex — 建立 MTR 4.0.5 / MC 1.20.1 Forge/Fabric 兼容分支
 
-- 用户明确要求独立旧版本分支；从 main v1.5.1 建立 `compat/mtr-4.0-mc-1.20`，worktree `../mtrmap-mc120`，版本 v1.5.2；main 1.21.1 工作区未改。
+- 用户明确要求独立旧版本分支；从 main v1.5.1 建立 `compat/mtr-4.0-mc-1.20`，worktree `../mtrmap-mc120`，版本保持 v1.5.1；main 1.21.1 工作区未改。
 - 保留地图渲染和协议 v5，适配 MTR 4.0 包名/轨道引用、MC 1.20.1 渲染及两加载器网络通道。
 - Forge/Fabric build 各 25 项测试通过；打包元数据、Java 17、无加载器交叉引用及生产 Xaero 钩子检查通过。CI 加入双平台测试及产物验证。
 - 当前只交付 MC 1.20.1；1.20.4 的 JourneyMap 5.x 集成尚未移植。没有启动游戏或创建 release；请 Ben 实机验证地图和联机。
@@ -132,3 +132,5 @@
 - 措施：新建 AGENTS.md（三条铁律+工作流程）、本交流墙、STATE.md、TASKS.md。
 - 提醒：所有 agent 开工前必读 AGENTS.md；平台已从 Forge 1.20.1 迁移到 NeoForge 1.21.1，
   旧记忆里的 "Forge 版本/main 分支" 描述一律以 STATE.md 为准。
+
+- 更正（2026-10-01）：按 Ben 明确要求，兼容分支及四个 MC 1.20 附件的模组、pack、metadata 版本均保持 1.5.1；已用 `CRTools-MTR-Map-Overlay-1.5.1-MC<版本>-MTR4.0.5-<loader>.jar` 命名替换先前误标的附件，不创建新版本。

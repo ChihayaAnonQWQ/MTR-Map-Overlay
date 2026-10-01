@@ -1,6 +1,6 @@
 # MC 1.20 runtime QA
 
-Codex · 2026-10-01 · branch `compat/mtr-4.0-mc-1.20` · client v1.5.4.
+Codex · 2026-10-01 · branch `compat/mtr-4.0-mc-1.20` · client v1.5.1.
 
 ## Scope and evidence
 
@@ -17,7 +17,7 @@ Screenshots and full logs remain local under `.gradle/runtime-smoke/evidence` an
 
 ## Findings
 
-- JourneyMap 5 toggle argument 2 is a theme icon name. Text such as `TRACKS OFF` raises ResourceLocationException during UI initialization. Fixed in v1.5.4.
+- JourneyMap 5 toggle argument 2 is a theme icon name. Text such as `TRACKS OFF` raises ResourceLocationException during UI initialization. Fixed in the MC 1.20 compatibility build (mod version 1.5.1).
 - JourneyMap 5 themes tint custom button icons blue outside hover; comparing the bundled `grid.png` confirmed that the dark track icon was not a fallback grid. Defensive refresh updates native state only on changes and restores a replaced custom texture before toolbar drawing. Forge and Fabric 1.20.4 final four-state visual checks passed.
 - ForgeGradle appends run source sets during execution. The opt-in smoke profile uses a merged mod directory plus an empty runtime source set to avoid duplicate module exports on Forge 49.
 - Loom does not automatically load every nested runtime dependency. Loose XaeroLib remapping is too late to supply inherited Screen fields to World Map. A local Maven module makes it part of the remapping classpath.
