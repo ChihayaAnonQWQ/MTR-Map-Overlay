@@ -7,6 +7,12 @@
 > 正文：背景 / 做了什么 / 需要谁注意什么 / 关联 commit 或任务。
 > ```
 
+## [2026-10-01 23:52] Codex — README 平台信息与捐赠入口同步
+
+- 按最新 GitHub v1.5.1 发布同步中英文 README：1.21.1 NeoForge/Fabric、1.20.1 与 1.20.4 Forge/Fabric 六个 JAR，列出对应 Java/MTR/地图依赖，移除过时预发布说明。
+- 增加 Modrinth/CurseForge cozy badge 和 Ko-fi、自制爱发电 badge；资产在 `docs/assets/badges/`。官网在下载后加入捐赠板块，中英文内容、桌面与 390px 窄屏已检查，控制台无相关报错。
+- 未修改模组源码、依赖、版本或发布附件。官网文件位于独立目录 `../mtrsurveyor-site`，尚未部署。
+
 ## [2026-09-25 00:43] Codex — 第二轮代码审查与优化
 
 - `MapTrack` 在构造时计算包围盒；Xaero 整轨视口/悬停剔除和 JourneyMap 共用包围盒，减少每帧逐段检查。轨道采样遇到非有限坐标时丢弃该轨道。

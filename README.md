@@ -5,10 +5,15 @@
 
   <p>Minecraft Transit Railway routes, rails and stations on your map.</p>
 
-  <p><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1">Test v1.5.1 pre-release</a></p>
+  <p><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="https://mtrmapoverlay.benli06.site/en/">Website &amp; docs</a> · <a href="https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1">Download v1.5.1</a></p>
+
+  <p>
+    <a href="https://modrinth.com/project/ZU7SzyH7"><img src="docs/assets/badges/modrinth-cozy.svg" alt="Available on Modrinth" height="56"></a>
+    <a href="https://www.curseforge.com/minecraft/mc-mods/mtr-map-overlay"><img src="docs/assets/badges/curseforge-cozy.svg" alt="Available on CurseForge" height="56"></a>
+  </p>
 </div>
 
-MTR Map Overlay is a Minecraft 1.21.1 add-on for **NeoForge or Fabric**. It reads [Minecraft Transit Railway (MTR)](https://github.com/Minecraft-Transit-Railway/Minecraft-Transit-Railway) data and integrates with Xaero's World Map and JourneyMap. It does not depend on MTR Surveyor's map.
+MTR Map Overlay adds Minecraft Transit Railway routes, physical rails and map-only landmarks to Xaero's World Map and JourneyMap. **v1.5.1 supports Minecraft 1.20.1 and 1.20.4 on Forge or Fabric, and 1.21.1 on NeoForge or Fabric.** It reads [Minecraft Transit Railway (MTR)](https://github.com/Minecraft-Transit-Railway/Minecraft-Transit-Railway) data directly and does not depend on MTR Surveyor's map.
 
 ## Features
 
@@ -23,20 +28,20 @@ When the mod is installed on the server as well as the client, it can request a 
 
 ## Requirements and installation
 
-| Component | Requirement |
-| --- | --- |
-| Minecraft | 1.21.1, Java 21 |
-| Mod loader | NeoForge 21.1.x **or** Fabric Loader with Fabric API |
-| MTR | 4.1.0-beta.2, built for the same loader |
-| Map mod | Xaero's World Map 1.45.0+ and/or JourneyMap 6.0.8+ for the respective loader |
-| Xaero's Minimap | Optional; used only to remove old `[MTR]` waypoints created by earlier releases |
+| Minecraft | Loader | Java | MTR | Optional maps |
+| --- | --- | --- | --- | --- |
+| 1.21.1 | NeoForge 21.1.x or Fabric + Fabric API | 21 | 4.1.0-beta.2 | Xaero's World Map 1.45.0+ / JourneyMap 6.0.8+ |
+| 1.20.1 | Forge 47.x or Fabric + Fabric API | 17+ | >=4.0.5, <4.1 | Xaero's World Map 1.45.0+ / JourneyMap 6.0.6+ |
+| 1.20.4 | Forge 49.x or Fabric + Fabric API | 17+ | >=4.0.5, <4.1 | Xaero's World Map 1.45.0+ / JourneyMap 5.10.0 |
 
-1. For pre-release testing, download the **NeoForge** or **Fabric** JAR from [v1.5.1](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1). Install **one**, not both, in the client's `mods` directory. The last stable release is [v1.5.0](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.0).
+Every dependency must match your Minecraft version and loader. Xaero's Minimap is optional and is only used to remove old `[MTR]` waypoints created by earlier releases.
+
+1. Download **one JAR** matching your exact Minecraft version and loader from the latest release, [v1.5.1](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1), and place it in the client's `mods` directory. The release has six JARs: the original NeoForge/Fabric builds for 1.21.1 and four `MC1.20.1` / `MC1.20.4` Forge/Fabric compatibility builds.
 2. Install MTR and your chosen map mod for that same loader. Fabric additionally needs Fabric API.
 3. Optionally install the matching MTR Map Overlay JAR and MTR on the server to enable the whole-network view. Client and server must use the `mtrmap` mod ID; older `mtrsurveyor` builds are not compatible with this release.
 4. Open Xaero's World Map or JourneyMap's fullscreen map. Both maps have matching `ROUTES` and `TRACKS` icons (green left bar = on, red = off); JourneyMap puts them in its add-on button panel. The `/mtrmap config routeLines` and `trackLines` switches apply to both maps. Hover over a line or icon for details.
 
-The server component is not required for client-only use. v1.5.1 isolates NeoForge's client-only initialization so a Dedicated Server can start with the mod installed. NeoForge and Fabric builds and the shared headless tests are checked for this pre-release; JourneyMap fullscreen rendering, Fabric map rendering, and cross-machine network behaviour still need in-game validation. See [release notes](RELEASE_NOTES.md).
+The server component is optional. v1.5.1 fixes NeoForge dedicated-server startup by isolating client initialization. The 1.21.1 builds, shared tests and NeoForge dedicated-server startup passed; fullscreen visuals and cross-machine multiplayer still need further verification. All four MC 1.20 builds passed local development-runtime map and dedicated-server checks; production-JAR startup and cross-machine play remain unverified. See [release notes](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1) and the [MC 1.20 runtime QA](https://github.com/teamCreating/MTR-Map-Overlay/blob/compat/mtr-4.0-mc-1.20/docs/validation/mc120-runtime.md).
 
 ## Commands and configuration
 
@@ -60,6 +65,8 @@ NeoForge stores settings in `config/mtrmap.toml` and copies an existing `mtrsurv
 ## Build from source
 
 Use a Java 21 toolchain. The loader builds have separate Gradle wrappers because they use different build plugins:
+
+The commands below build the **1.21.1 main branch**. Forge/Fabric 1.20.1 and 1.20.4 sources and build instructions are on the [MC 1.20 compatibility branch](https://github.com/teamCreating/MTR-Map-Overlay/tree/compat/mtr-4.0-mc-1.20).
 
 | Loader | Windows | macOS / Linux | Output |
 | --- | --- | --- | --- |
@@ -89,6 +96,13 @@ Data flow: MTR simulator/client data → dimension-specific `MapDataCache` → X
 - **No Xaero lines:** check that Xaero's **World Map** is installed and that the log contains `Path layer render hook into Xaero's World Map is active`. Xaero internal changes can break the render hook.
 - **No minimap waypoints:** expected. Landmarks are intentionally fullscreen-map overlays.
 - **Migrating from an older build:** replace the old `mtrsurveyor` JAR rather than installing it beside this one; the mod ID and command are now `mtrmap` and `/mtrmap`.
+
+## Support development
+
+If MTR Map Overlay helps you explore your railway network, you can support continued development on Ko-fi or Afdian.
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Z8C424REOO)
+<a href="https://afdian.com/a/benli06"><img src="docs/assets/badges/afdian.svg" alt="Support me on Afdian · 爱发电" height="30"></a>
 
 ## License and attribution
 

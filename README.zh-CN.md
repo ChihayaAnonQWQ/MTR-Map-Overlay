@@ -5,10 +5,15 @@
 
   <p>在地图上查看 Minecraft Transit Railway 的路线、轨道和车站。</p>
 
-  <p><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1">试用 v1.5.1 预发布版</a></p>
+  <p><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="https://mtrmapoverlay.benli06.site/zh/">官网与文档</a> · <a href="https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1">下载 v1.5.1</a></p>
+
+  <p>
+    <a href="https://modrinth.com/project/ZU7SzyH7"><img src="docs/assets/badges/modrinth-cozy.svg" alt="Modrinth 下载" height="56"></a>
+    <a href="https://www.curseforge.com/minecraft/mc-mods/mtr-map-overlay"><img src="docs/assets/badges/curseforge-cozy.svg" alt="CurseForge 下载" height="56"></a>
+  </p>
 </div>
 
-MTR Map Overlay 是适用于 **Minecraft 1.21.1 NeoForge 或 Fabric** 的地图扩展。它读取 [Minecraft Transit Railway（MTR）](https://github.com/Minecraft-Transit-Railway/Minecraft-Transit-Railway) 的数据，绘制到 Xaero's World Map 和 JourneyMap；不依赖 MTR Surveyor 的地图。
+MTR Map Overlay 将 Minecraft Transit Railway 的路线、真实轨道与地图专属地标显示在 Xaero's World Map 和 JourneyMap 中。**v1.5.1 支持 Minecraft 1.20.1、1.20.4 的 Forge/Fabric，以及 1.21.1 的 NeoForge/Fabric。**它直接读取 [Minecraft Transit Railway（MTR）](https://github.com/Minecraft-Transit-Railway/Minecraft-Transit-Railway) 数据，不依赖 MTR Surveyor 的地图。
 
 ## 功能
 
@@ -23,20 +28,20 @@ MTR Map Overlay 是适用于 **Minecraft 1.21.1 NeoForge 或 Fabric** 的地图�
 
 ## 依赖与安装
 
-| 组件 | 要求 |
-| --- | --- |
-| Minecraft | 1.21.1、Java 21 |
-| 加载器 | NeoForge 21.1.x **或** Fabric Loader + Fabric API |
-| MTR | 与所选加载器对应的 4.1.0-beta.2 |
-| 地图 mod | 与加载器对应的 Xaero's World Map 1.45.0+ 和/或 JourneyMap 6.0.8+ |
-| Xaero's Minimap | 可选；只用于清理旧版本创建的 `[MTR]` 路标 |
+| Minecraft | 加载器 | Java | MTR | 可选地图 |
+| --- | --- | --- | --- | --- |
+| 1.21.1 | NeoForge 21.1.x 或 Fabric + Fabric API | 21 | 4.1.0-beta.2 | Xaero's World Map 1.45.0+ / JourneyMap 6.0.8+ |
+| 1.20.1 | Forge 47.x 或 Fabric + Fabric API | 17+ | >=4.0.5, <4.1 | Xaero's World Map 1.45.0+ / JourneyMap 6.0.6+ |
+| 1.20.4 | Forge 49.x 或 Fabric + Fabric API | 17+ | >=4.0.5, <4.1 | Xaero's World Map 1.45.0+ / JourneyMap 5.10.0 |
 
-1. 如需测试预发布版，从 [v1.5.1](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1) 下载与你的加载器对应的 **NeoForge 或 Fabric JAR**，放入客户端 `mods` 目录。**不要同时安装两个版本。**上一稳定版为 [v1.5.0](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.0)。
+所有依赖都必须匹配 Minecraft 版本及加载器。Xaero's Minimap 为可选依赖，只用于清理旧版本创建的 `[MTR]` 路标。
+
+1. 从最新发布版 [v1.5.1](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1) 下载与 Minecraft 版本及加载器完全匹配的 **一个 JAR**，放入客户端 `mods` 目录。发布包含六个 JAR：原有两个 1.21.1 NeoForge/Fabric 构建，以及文件名带 `MC1.20.1` / `MC1.20.4` 的四个 Forge/Fabric 兼容构建。
 2. 安装同一加载器的 MTR 和所需地图 mod；Fabric 还必须安装 Fabric API。
 3. 如需全网地图，可选地在服务器安装对应加载器版本的 MTR Map Overlay 和 MTR。客户端与服务端都必须使用新的 `mtrmap` mod ID；旧的 `mtrsurveyor` 版本与本版不兼容。
 4. 打开 Xaero's World Map 或 JourneyMap 全屏地图。两端使用配套的 `ROUTES`、`TRACKS` 图标：左侧亮条绿色表示开、红色表示关；JourneyMap 的按钮位于附加按钮栏。`/mtrmap config routeLines` 和 `trackLines` 也对两种地图生效。悬停在线路或图标上可查看详情。
 
-纯客户端使用不要求服务端安装。v1.5.1 已隔离 NeoForge 的纯客户端初始化，使 Dedicated Server 可以安装并启动本 mod。此预发布版的 NeoForge、Fabric 构建与共用无头测试已检查；JourneyMap 全屏绘制、Fabric 地图绘制及跨机器联机仍需游戏内验证，详见[发布说明](RELEASE_NOTES.md)。
+服务端组件为可选。v1.5.1 通过隔离客户端初始化修复 NeoForge 专用服务器启动崩溃；1.21.1 构建、共用测试与 NeoForge 专用服务器启动已通过，全屏地图视觉与跨机器联机仍待进一步验证。四个 MC 1.20 构建均通过本地开发运行环境的地图与专用服务器检查；生产 JAR 启动及跨机器联机尚未验证。详见[发布说明](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1)和 [MC 1.20 实机验证记录](https://github.com/teamCreating/MTR-Map-Overlay/blob/compat/mtr-4.0-mc-1.20/docs/validation/mc120-runtime.md)。
 
 ## 命令与配置
 
@@ -60,6 +65,8 @@ NeoForge 配置位于 `config/mtrmap.toml`；如果新配置不存在，首次�
 ## 从源码构建
 
 需要 Java 21 工具链。两种加载器使用独立的 Gradle wrapper：
+
+下方命令构建的是 **1.21.1 主线**。Forge/Fabric 1.20.1 和 1.20.4 的源码及构建步骤位于 [MC 1.20 兼容分支](https://github.com/teamCreating/MTR-Map-Overlay/tree/compat/mtr-4.0-mc-1.20)。
 
 | 加载器 | Windows | macOS / Linux | 产物 |
 | --- | --- | --- | --- |
@@ -89,6 +96,13 @@ NeoForge 源码在 [`src/main/java/com/lx862/mtrmap`](src/main/java/com/lx862/mt
 - **Xaero 没有线路：**确认安装的是 Xaero's **World Map**，并检查日志中是否出现 `Path layer render hook into Xaero's World Map is active`。Xaero 内部实现变化可能导致绘制钩子失效。
 - **小地图没有路标：**这是预期行为，地标只在全屏地图显示。
 - **从旧版升级：**请替换旧的 `mtrsurveyor` JAR，不要同时安装；新版 mod ID 和命令分别为 `mtrmap`、`/mtrmap`。
+
+## 支持开发
+
+如果 MTR Map Overlay 帮助你探索铁路网络，欢迎通过 Ko-fi 或爱发电支持持续开发。
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Z8C424REOO)
+<a href="https://afdian.com/a/benli06"><img src="docs/assets/badges/afdian.svg" alt="通过爱发电支持我" height="30"></a>
 
 ## 许可证与署名
 

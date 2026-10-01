@@ -6,6 +6,7 @@
 
 ## 进行中
 
+
 ### [功能] 列车实时位置上地图
 - 在路径层上绘制在线列车小圆点/图标。数据已在客户端：`MinecraftClientData.vehicles`（`org.mtr.client.VehicleExtension`，含实时位置与路线 id）。
 - 建议：每帧按维度过滤 + 视口剔除；样式参考 Create 的 drawTrains。预计工作量小。
@@ -23,6 +24,8 @@
 - 面向国际用户的英文版 walkthrough（当前为中文）。
 
 ## 完成
+
+- [完成] 官网捐赠入口与 README 发布信息同步 — Codex，2026-10-01 23:52；中英文 README 更新 v1.5.1 六个附件的版本/依赖矩阵及下载、捐赠 badge，官网新增 Ko-fi 与爱发电板块；官网构建与桌面/390px 浏览器检查通过。未改模组代码。
 
 - [完成] 第二轮审查：轨道视口剔除、JourneyMap 图标批处理、分块重组校验及跨世界缓存清理 — Codex，2026-09-25 00:43，commit d63ea19；NeoForge/Fabric 构建和单测通过，待实机验证。
 - [完成] 共用轨道采样缓存与寻路热路径优化 — Codex，2026-09-25 00:32，commit 78ae6fc；NeoForge/Fabric 构建与单测通过；仅改数据采集和寻路，不改协议格式。

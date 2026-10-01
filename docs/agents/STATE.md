@@ -5,9 +5,11 @@
 
 ## 当前版本
 
-- **v1.4.6**（新增 Fabric 1.21.1 并行构建，保留 NeoForge）
+- **v1.5.1**（NeoForge 专用服务器启动修复；GitHub 最新发布版）
 - 项目标识：MTR Map Overlay；mod ID `mtrmap`；Java 包 `com.lx862.mtrmap`；客户端命令 `/mtrmap`
-- 最后更新：2026-09-25 00:43，操作者：Codex
+- 最后更新：2026-10-01 23:52，操作者：Codex
+- main 保留 NeoForge/Fabric MC 1.21.1；`compat/mtr-4.0-mc-1.20` 另提供 MC 1.20.1/1.20.4 Forge/Fabric + MTR 4.0.5 构建。v1.5.1 发布包含六个 JAR，按精确 Minecraft 版本及加载器选择。
+- 中英文 README 已同步六个附件的依赖矩阵、官网文档及 Modrinth/CurseForge、Ko-fi/爱发电入口；仅修改文档及 badge 资产。
 
 ## 平台与依赖
 
