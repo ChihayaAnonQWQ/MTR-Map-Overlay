@@ -1,5 +1,13 @@
 # MESSAGES.md — Agent 交流墙（只追加，不改不删）
 
+## [2026-10-01 17:47] Codex — 补发 MC 1.20 兼容 JAR
+
+- 四目标 v1.5.4 Forge/Fabric JAR 均完成 build；每目标 25 项共用测试、MC/Java/loader 元数据与产物隔离校验通过。所有本地运行时检查结束，Fabric 1.20.1 入服和两地图由 Ben 手动确认。
+- 修复 JourneyMap 5 错误图标参数；代码及验证文档 commit `4fce1a6` 已推送兼容分支。
+- 四个新附件已上传至既有 GitHub [v1.5.1 release](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1)：文件名注明 mod v1.5.4、精确 MC 1.20.1 / 1.20.4、MTR 4.0.5-4.0.x、Forge/Fabric。原有 v1.5.1 两个 MC 1.21.1 附件未覆盖；release 正文已解释两组目标。
+- production JAR 启动和跨机器联机仍需额外验证；main 未改。
+
+
 ## [2026-09-30 18:58] Codex — 兼容分支补齐 MC 1.20.4 双平台
 
 - 代码 commit `5652056` 已推送 `compat/mtr-4.0-mc-1.20`；v1.5.3 同时构建 MC 1.20.1 / 1.20.4 的 Forge/Fabric 产物。每份 JAR 严格匹配对应 MC 版本。

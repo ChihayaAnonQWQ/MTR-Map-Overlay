@@ -1,6 +1,6 @@
 # STATE.md — MC 1.20 兼容分支权威状态
 
-- 最后更新：2026-10-01 17:43，操作者：Codex。
+- 最后更新：2026-10-01 17:47，操作者：Codex。
 - 分支：`compat/mtr-4.0-mc-1.20`；基于 main `6afde36`（v1.5.1）。
 - 版本：**v1.5.4**；mod ID `mtrmap`；包 `com.lx862.mtrmap`；客户端命令 `/mtrmap`。
 - 主线继续保留 NeoForge/Fabric MC 1.21.1，独立 worktree `../mtrsurveyor` 未修改且工作区干净。
@@ -59,4 +59,4 @@ Fabric 两版本均声明 `journeymap` 插件入口；不能只依赖 Forge 使�
 - MTR 元数据范围为 >=4.0.5 且 <4.1；只针对当前 4.0.5 做了构建验证。
 - 两加载器共享数据格式，但不宣称跨加载器联机兼容；需使用同加载器服务端/客户端。
 - 路径层只采样 TRAIN 模式；车辆实时位置未上图；洞穴层下线路悬浮沿用主线限制。
-- 兼容 JAR 将作为带有 v1.5.4 / MC / MTR / loader 标记的独立附件补入 GitHub v1.5.1 release；该 release 原 v1.5.1 二进制仍是 MC 1.21.1，正文将解释版本差异。没有新建 release/tag，也未推回 main。
+- 四个带有 v1.5.4 / 精确 MC / MTR 4.0.5-4.0.x / Forge 或 Fabric 标记的兼容 JAR 已附加到 [GitHub v1.5.1 release](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1)。发布说明区分原始 1.5.1 MC 1.21.1 二进制与新兼容附件；未新建 release/tag，也未推回 main。
