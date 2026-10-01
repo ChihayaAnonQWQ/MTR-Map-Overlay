@@ -1,5 +1,9 @@
 # MC 1.20 compatibility builds — mod version 1.5.1
 
+新增 Minecraft 1.20.1 / 1.20.4 与 MTR 4.0.5 的 Forge、Fabric 兼容适配；mod、pack 和 metadata 版本继续保持 1.5.1。
+
+Added Forge and Fabric compatibility for Minecraft 1.20.1 and 1.20.4 with MTR 4.0.5. The mod, pack, and metadata versions remain 1.5.1.
+
 Opening JourneyMap on MC 1.20.4 previously supplied toggle text as a theme icon path. Invalid uppercase/space characters interrupted fullscreen initialization, hid the add-on buttons, and could cause a later chat-input crash. The adapter now uses valid theme icon names before replacing them with MTR textures, updates native toggle state only when it changes, and restores custom textures after JourneyMap reloads button themes.
 
 Opt-in Forge/Fabric runtime profiles install matching test dependencies, merge Forge development classes with metadata, and expose isolated client/server directories. Fabric extracts the pinned nested JourneyMap API and XaeroLib into local Maven modules so Loom can resolve their class hierarchy during remapping. These dependencies remain external to release JARs.
@@ -33,7 +37,7 @@ Port the 1.5.1 map overlay to Forge and Fabric MC 1.20.1 with MTR 4.0.5. The mai
 - Extract the pinned JourneyMap 6.0.6 API for compilation; do not bundle third-party map mods or APIs.
 - Run shared geometry, pathfinder, snapshot and packet codec tests on both loaders. The world-writing test generator is opt-in.
 
-Targets MC 1.20.1 only. MC 1.20.4 / JourneyMap 5 integration is not implemented. No public release or in-game validation is included in this branch work.
+The MC 1.20.4 Forge/Fabric targets and JourneyMap 5 integration are added in the section above. Both supported targets are included in the v1.5.1 compatibility release; runtime validation is recorded in `docs/validation/mc120-runtime.md`.
 
 ---
 
