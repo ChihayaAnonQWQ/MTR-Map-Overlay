@@ -6,14 +6,13 @@
   "plugin": "com.lx862.mtrmap.mixin.XaeroMixinPlugin",
   "compatibilityLevel": "JAVA_17",
   "client": [
-    "client.MinecraftClientDataMixin",
+    "client.ClientDataSyncMixin",
     "client.xaero.XaeroWorldMapAccessor",
     "client.xaero.XaeroWorldMapMixin"
   ],
   "mixins": [
-    "MainAccessorMixin",
-    "MTRAccessorMixin",
-    "MTRSimulatorMixin"
+    "RailwayDataAccessorMixin",
+    "SidingAccessorMixin"
   ],
   "injectors": {
     "defaultRequire": 1

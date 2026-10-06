@@ -1,18 +1,20 @@
 package com.lx862.mtrmap.mapdata;
 
-import org.mtr.core.data.PathData;
-import org.mtr.core.data.Rail;
-import org.mtr.core.data.RailMath;
-import org.mtr.core.data.TransportMode;
-import org.mtr.core.tool.Vector;
+import com.lx862.mtrmap.mtr.MtrCompat;
+import mtr.data.Rail;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Samples a rail's real geometry (arcs, slopes) into an X/Z polyline.
- * Shared by the client-side collector and the server-side network collector
- * so both produce identical track data.
+ * Shared by the client-side cache and the server-side network collector so both
+ * produce identical track data.
+ *
+ * <p>MTR 3 exposes the curve directly on {@link Rail} ({@code getLength()} /
+ * {@code getPosition(double)} returning a {@link Vec3}); MTR 4 needed a separate
+ * {@code RailMath} object with a two-argument {@code getPosition}.</p>
  */
 public final class TrackSampler {
 
@@ -24,53 +26,15 @@ public final class TrackSampler {
     }
 
     /**
-     * Sample one stretch of a real driving path ({@link PathData}) into an X/Z
-     * polyline, ordered along the traversal direction. Returns {@code null}
-     * when the rail reference is missing or the stretch has no length.
-     */
-    public static List<double[]> samplePathData(PathData pathData) {
-        try {
-            final Rail rail = pathData.getRail();
-            if (rail == null || !rail.isValid() || rail.railMath == null) {
-                return null;
-            }
-            final double length = rail.railMath.getLength();
-            if (!Double.isFinite(length) || length <= 0) {
-                return null;
-            }
-            final double d1 = Math.max(0, Math.min(length, pathData.getStartDistance()));
-            final double d2 = Math.max(0, Math.min(length, pathData.getEndDistance()));
-            if (Math.abs(d2 - d1) < 1.0E-3) {
-                return null;
-            }
-            final int sampleCount = (int) Math.min(MAX_SAMPLES_PER_RAIL,
-                    Math.max(2, Math.ceil(Math.abs(d2 - d1) / SAMPLE_INTERVAL) + 1));
-            final ArrayList<double[]> points = new ArrayList<>(sampleCount);
-            for (int i = 0; i < sampleCount; i++) {
-                final double d = d1 + (d2 - d1) * i / (sampleCount - 1);
-                final Vector pos = rail.railMath.getPosition(d, false);
-                if (!Double.isFinite(pos.x()) || !Double.isFinite(pos.z())) {
-                    return null;
-                }
-                points.add(new double[]{pos.x(), pos.z()});
-            }
-            return points;
-        } catch (Throwable e) {
-            return null;
-        }
-    }
-
-    /**
-     * Sample one rail into a polyline. Returns {@code null} when the rail is
-     * not a train rail or has no usable geometry.
+     * Sample one rail into a polyline. Returns {@code null} when the rail is not
+     * a train rail or has no usable geometry.
      */
     public static List<double[]> sample(Rail rail) {
         try {
-            if (rail.getTransportMode() != TransportMode.TRAIN || !rail.isValid()) {
+            if (!MtrCompat.isDrawableRail(rail)) {
                 return null;
             }
-            final RailMath railMath = rail.railMath;
-            final double length = railMath.getLength();
+            final double length = rail.getLength();
             if (!Double.isFinite(length) || length <= 0) {
                 return null;
             }
@@ -80,11 +44,11 @@ public final class TrackSampler {
             final ArrayList<double[]> points = new ArrayList<>(sampleCount);
             for (int i = 0; i < sampleCount; i++) {
                 final double distance = Math.min(length, i * (length / (sampleCount - 1)));
-                final Vector pos = railMath.getPosition(distance, false);
-                if (!Double.isFinite(pos.x()) || !Double.isFinite(pos.z())) {
+                final Vec3 pos = rail.getPosition(distance);
+                if (pos == null || !Double.isFinite(pos.x) || !Double.isFinite(pos.z)) {
                     return null;
                 }
-                points.add(new double[]{pos.x(), pos.z()});
+                points.add(new double[]{pos.x, pos.z});
             }
             return points;
         } catch (Throwable e) {

@@ -1,63 +1,85 @@
-# STATE.md — MC 1.20 兼容分支权威状态
+# STATE.md — MTR 3 移植树权威状态
 
-- 最后更新：2026-10-01 18:35，操作者：Codex。
-- 分支：`compat/mtr-4.0-mc-1.20`；基于 main `6afde36`（v1.5.1）。
-- 版本：**v1.5.1**；mod ID `mtrmap`；包 `com.lx862.mtrmap`；客户端命令 `/mtrmap`。
-- 主线继续保留 NeoForge/Fabric MC 1.21.1，独立 worktree `../mtrsurveyor` 未修改且工作区干净。
+- 最后更新：2026-10-06 06:00，操作者：DeepSeek Harness（Lead agent）。
+- 来源：`compat/mtr-4.0-mc-1.20` 分支（MTR 4.0.5 / MC 1.20.1 + 1.20.4 / Forge + Fabric，v1.5.1）的**离线副本**，
+  本次只做一件事：把 Forge 1.20.1 目标从 **MTR 4** 迁到 **MTR 3**。
+- 目录：`mtr-port/port-forge-mtr3`（本树）；原始兼容分支快照保留在 `mtr-port/src4`，仅作对照，未修改。
+- 版本：**v1.5.1**（未改）；mod ID `mtrmap`；包 `com.lx862.mtrmap`；客户端命令 `/mtrmap`。
 
-## 平台与依赖
+## 平台与依赖（本树）
 
-| 项 | MC 1.20.1 | MC 1.20.4 |
+| 项 | 值 |
+| --- | --- |
+| Minecraft / Java | 精确 1.20.1 / Java 17（Gradle 用 JDK 21） |
+| Forge | 47.4.0（ForgeGradle 6.0.54 / Gradle 8.8） |
+| MTR | **3.2.2-hotfix-2**（Forge 1.20.1，`mtr_version=1.20.1-3.2.2-hotfix-2`）；另已对第三方 fork「Yomi's MTR 1.20.1-3.6.3」做 API 差分 + 整套单测验证 |
+| Architectury | 9.2.14+forge —— MTR 3 的 mods.toml 把 architectury 列为**强制依赖**（仅运行时冒烟测试需要） |
+| Xaero World Map / Minimap | 编译对 **1.40.11**（最低支持版）/ 运行时区间 `[1.40.0,)`；Minimap 26.4.2，区间 `*` |
+| JourneyMap | 1.20.1-6.0.6（v2 API，未改） |
+| pack_format | 15 |
+
+**1.20.4 目标已移除**：MTR 3 没有 1.20.4 版本，而 MTR 4 是另一套数据模型。
+`gradle/minecraft-target.gradle` 现在对 `-Pminecraft_version=1.20.4` 直接 fail fast，
+`compat/mc1204/**` 与 `fabric/**` 保留但**不参与本树构建**（Fabric 未移植）。
+
+## 架构与移植（MTR 4 → MTR 3）
+
+核心差异：MTR 4 把数据模型抽成平台无关的 `org.mtr.core.*`（`Position` / `RailMath` / `SimplifiedRoute` /
+`MinecraftClientData` / `Simulator` + `Main` 线程池）；MTR 3 把模型留在 `mtr.data.*` / `mtr.client.*`，
+并且**直接用 Minecraft 类型**（`BlockPos` / `Vec3`），服务端数据是每个维度一个
+`RailwayData`（SavedData key `mtr_train_data`），客户端数据是 `ClientData` 的静态集合。
+
+| MTR 4 | MTR 3 | 位置 |
 | --- | --- | --- |
-| Minecraft / Java | 精确 1.20.1 / Java 17 | 精确 1.20.4 / Java 17 |
-| Forge | 47.4.0 | 49.2.0 |
-| Fabric Loader / API | 0.16.14 / 0.92.6+1.20.1 | 0.16.14 / 0.97.3+1.20.4 |
-| MTR | 4.0.5 | 4.0.5 |
-| Xaero World Map / Minimap | 1.45.0 / 26.4.2 | 1.45.0 / 26.4.2 |
-| JourneyMap | 1.20.1-6.0.6 / v2 API | 5.10.0 / 旧 API |
-| pack_format | 15 | 22 |
+| `org.mtr.core.data.Position` | `net.minecraft.core.BlockPos` | 全树 |
+| `org.mtr.core.tool.Vector` | `net.minecraft.world.phys.Vec3` | TrackSampler / RoutePathfinder |
+| `Rail.railMath.getLength()/getPosition(d,false)` | `Rail.getLength()` / `Rail.getPosition(d)` | TrackSampler / RoutePathfinder |
+| `Rail.getTransportMode()` / `getHexId()` | 公有字段 `rail.transportMode` / 端点对合成 id | `MtrCompat.railKey` |
+| `Route.getRoutePlatforms()` / `RoutePlatformData` | `Route.platformIds`（`List<Route.RoutePlatform>`，字段 `platformId`+`customDestination`） | MapDataBuilder / MTRDataSummary / JourneyMap |
+| `Station.savedRails` | `DataCache.platformIdToStation` 反向索引 | `MtrCompat.platformsByStation` |
+| `Platform.getMidPosition()` / `getStationName()` | `SavedRailBase.getMidPos()` / `DataCache.platformIdToStation` | MapDataBuilder |
+| `Depot.getPath()/writePathCache()/routes(Set)` | `Siding.path`（`@Accessor` mixin）+ `Depot.routeIds` → `DataCache.routeIdMap` | ServerNetworkCollector |
+| `Simulator` 线程池 + `Main` accessor | 每个 `ServerLevel` 的 `RailwayData.getInstance(level)`，全部在服务端线程 | ServerNetworkCollector |
+| `MinecraftClientData.getInstance()/getDashboardInstance().{stations,depots,rails,vehicles,simplifiedRoutes}` | 静态 `ClientData.{STATIONS,DEPOTS,RAILS,TRAINS,ROUTES}` + `ClientData.DATA_CACHE` | MapDataCache / JourneyMap |
+| `VehicleExtension.vehicleExtraData.immutablePath` | `TrainClient.path`（`List<PathData>`）+ `getThisRoute()`/`getRouteIds()` | MapDataCache |
+| `@Mixin MinecraftClientData#sync` | `@Mixin ClientData#receivePacket` TAIL（MTR 3 唯一整批同步入口，内部再调 `DATA_CACHE.sync()`） | `mixin/client/ClientDataSyncMixin` |
+| `@Mixin Main` / `Init.main` / `Simulator.sync` | **删除**：MTR 3 无这三个目标；`Simulator.sync` 覆写原本就是空实现 | — |
+| （无） | `@Mixin RailwayData` `@Accessor("rails")`、`@Mixin Siding` `@Accessor("path")` | 新增，MTR 3 把这两处设为 private |
 
-Gradle 使用 JDK 21；ForgeGradle 6.0.54 / Gradle 8.8，Loom 1.17.21 / Gradle 9.5.0。
-MTR 4.0.5 是 2026-09-30 从 Modrinth 官方项目 API 核实的最新稳定 4.0.x，发布包同时提供上述四个目标。
-JourneyMap 6 和 Fabric JourneyMap 5 的嵌套 API 校验后提取为编译依赖；Forge JourneyMap 5 的 API 直接在原发布包中。均不捆绑进本模组。
+其它结构性改动：
 
-## 架构与移植
-
-保留 v1.5.1 的轨道采样复用、路线彩虹带、地图内地标、视口剔除和全网络快照。
-MTR mod 侧包为 `org.mtr.mod.*`，主入口 accessor 指向 `org.mtr.mod.Init.main`。
-Forge 使用方向受限的可选 SimpleChannel；Fabric 使用 1.20 原始包通道；均复用协议 v5、hash 探测、200KB 分块和重组校验。
-物理客户端初始化与回调保持隔离。MTR 4.0 平台轨道按端点精确匹配，再按距离回退。
-Forge Xaero mixin 接受开发名称和 SRG 运行时名称；Fabric 接受 intermediary 运行时名称。
-
-1.20.4 专用代码在 `compat/mc1204/`：Forge 49 的 ChannelBuilder / 直接 Context / Connection 发送；JourneyMap 5 插件、两加载器按钮事件桥及前景绘制。
-可选 mixin 在 JourneyMap 5 `drawMap` 返回后运行，早于工具栏；投影从 gridRenderer 的连续坐标采样并加 getMouseDrag 的临时偏移。
-`gradle/minecraft-target.gradle` 为地标构建器与存在性检查生成旧 API 适配，仅转换命名空间、显式 marker ID 和 UI EnumSet，数据处理逻辑保持共享。
-Fabric 两版本均声明 `journeymap` 插件入口；不能只依赖 Forge 使用的注解扫描。未安装地图模组时相关类与 mixin 保持可选。
+- 新增 `mtr/MtrCompat.java`：所有 MTR 3 专有细节（维度 key、轨道 id 合成、车厢/站台/线路索引）的唯一入口。
+- 新增 `mapdata/MapDataBuilder.java`：**单一**快照构建器，客户端缓存与服务端全网快照共用
+  （MTR 4 时代客户端/服务端是两套并行实现，因为 core 与 mod 数据模型不同；MTR 3 只有一套 `mtr.data`）。
+  真实运行路径（车厢/车库路径）→ 按线路染色；无生成路径的线路 → `RoutePathfinder` 严格贴轨回退（原逻辑保留）。
+- `wrapper/impl/MTRSimplifiedRoute*Impl` 删除（MTR 3 无 `SimplifiedRoute`）；`MTRRouteImpl` 改为字段访问。
+- `NetworkSnapshotCodec.PendingDimension` 去掉 `markRealPath/hasRealPath`（已内聚进 MapDataBuilder）。
+- 协议格式（channel `network_v5`、分块、hash 探测）**未改**，两端仍共享同一份编解码与 25 项单测。
 
 ## 验证
 
-- Forge 1.20.1 / Fabric 1.20.1 / Forge 1.20.4 / Fabric 1.20.4：`build` 全部成功，每目标 **25 项共用测试通过**。
-- 每个构建默认跳过 1 项会写测试存档的生成器；`-PmtrmapGenerateTestWorld=true` 可显式启用。
-- 包测试覆盖真实消息编解码、中文维度、最大分块、异常长度和 hash 数量；保留寻路、轨道几何、地图投影、快照及分块重组测试。
-- `python tools/verify_artifacts.py` 与 `python tools/verify_artifacts.py --minecraft 1.20.4`：四目标元数据、Java 17、加载器隔离、未捆绑依赖、生产 Xaero 钩子、JourneyMap API/可选 mixin/Fabric 插件入口及测试报告通过。
-- 检查 JourneyMap 5 原始 Forge/Fabric JAR：绘制钩子、投影字段/方法和插件发现机制匹配当前发布包。CI 配置已覆盖四目标；没有把本地通过表述为远端 CI 已通过。
-- Codex，2026-10-01：四目标开发环境独立服务端均启动至 Done；1.20.4 Forge/Fabric 客户端均收到 2 routes / 5 rails / 6 landmarks 全网快照；两地图四种开关、平移与缩放检查通过。Ben 于 2026-10-01 手动确认 Fabric 1.20.1 入服及 Xaero/JourneyMap 渲染、开关、平移和缩放正常。四目标本地开发运行实机检查完成，尚未验证 production JAR 启动或跨机器联机。
-- MC 1.20 兼容代码修复 JourneyMap 5 工具栏旧 API 参数语义：第二参数为合法主题图标名，原有大写带空格的开关文案导致 ResourceLocationException、地图初始化中断及后续 charTyped 空指针。早期两次客户端曾出现 glfw.dll 原生崩溃，最终回归未复现，原生根因未明；证据保留在隔离运行目录。
-
-## 构建与产物
-
-默认构建 1.20.1；加 `-Pminecraft_version=1.20.4` 选择 1.20.4。PowerShell 中该参数需加引号。两加载器各自使用其 Gradle wrapper；完整命令见 README。
-
-发布附件暂存于 `.gradle/runtime-smoke/release-staging/`：
-- `CRTools-MTR-Map-Overlay-1.5.1-MC1.20.1-MTR4.0.5-forge.jar`
-- `CRTools-MTR-Map-Overlay-1.5.1-MC1.20.1-MTR4.0.5-fabric.jar`
-- `CRTools-MTR-Map-Overlay-1.5.1-MC1.20.4-MTR4.0.5-forge.jar`
-- `CRTools-MTR-Map-Overlay-1.5.1-MC1.20.4-MTR4.0.5-fabric.jar`
+- `gradlew compileJava`：**通过**（仅剩上游既有的 Forge 47 弃用告警）。
+- `gradlew clean build`：**通过**，30 项单测全绿、1 项（测试世界生成器）按设计跳过；
+  产物 `build/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.1-mtr3-1.5.1.jar`（约 261 KB，Java 17）。
+- `-PmtrmapGenerateTestWorld=true` 生成器：**通过**，按 MTR 3 真实存档布局写出
+  `<world>/mtr/minecraft/overworld/{stations,platforms,sidings,routes,depots,rails}/…` + 空的 `data/mtr_train_data.dat`。
+- 服务端冒烟（MTR 3.2.2 + Architectury 9.2.14）：**Done**，模组加载正常；
+  `-Dmixin.debug.export=true` 导出物证明 `RailwayDataAccessorMixin` / `SidingAccessorMixin` 已应用到 MTR 类
+  （转换后的 `mtr.data.RailwayData`/`mtr.data.Siding` 实现了我们的接口，`Siding.getPath()` 已注入）。
+- **端到端**：把生成的存档放进开发服务端世界后，采集管线实测输出
+  `dim=minecraft/overworld routes=3 tracks=6 landmarks=7 bytes=1986`，其余维度为空且不报错。
+  详细证据见 `MTR3-PORT-REPORT.md` §4.3。
+- **依赖区间**（2026-10-06 11:5x 修复）：上游把 Xaero 世界地图钉在 `[1.45.0,)`，导致 1.44.2 用户整包加载失败；
+  现为 `[1.40.0,)`（1.40.11/1.44.2/1.45.0 的 `GuiMap`/`MapProcessor`/`MapWorld`/`MapDimension` 成员经 javap 确认一致，
+  编译依赖降到 1.40.11），JourneyMap 区间改为 `[1.20.1-6.0.0,)`。新增 `DependencyRangeTest` 用 Forge 同款
+  Maven `VersionRange` 固化这些断言（共 34 项测试）。
+- **第三方 fork 兼容**：对「Yomi's MTR 1.20.1-3.6.3」逐符号对比（63 项零差异）并用 fork 作为测试依赖跑完整套单测
+  （`gradlew test -PmtrTestCoordinate=maven.modrinth:ymtr:1.20.1-3.6.3`）——**34 项全绿**。
+- **未验证**：游戏内实机（Xaero / JourneyMap 渲染、开关、平移缩放）、客户端 mixin 实机应用、跨机联机快照。
+  本树无图形环境，需人工确认。
 
 ## 限制
 
-- 覆盖 MC 1.20.1 / 1.20.4，未覆盖整个 1.20.x；每份 JAR 只允许其对应的精确 MC 版本。
-- MTR 元数据范围为 >=4.0.5 且 <4.1；只针对当前 4.0.5 做了构建验证。
-- 两加载器共享数据格式，但不宣称跨加载器联机兼容；需使用同加载器服务端/客户端。
-- 路径层只采样 TRAIN 模式；车辆实时位置未上图；洞穴层下线路悬浮沿用主线限制。
-- 四个以 v1.5.1 命名并将 mod、pack、metadata 保持为 1.5.1，同时标明精确 MC / MTR 4.0.5 / Forge 或 Fabric 的兼容 JAR 已附加到 [GitHub v1.5.1 release](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1)。发布说明区分原始 1.5.1 MC 1.21.1 二进制与新兼容附件；未新建 release/tag，也未推回 main。
+- 只支持 Forge 1.20.1 + MTR 3.2.x；MTR 4 与 MC 1.20.4 明确不支持（mods.toml 已限制 `[1.20.1-3.2.2-hotfix-2,1.20.1-4.0.0)`）。
+- Fabric 目标未移植；`fabric/` 目录仍是 MTR 4 版本，不属于本树构建。
+- 车辆实时位置上图、非 TRAIN 轨道开关等上游待办仍未做（见 TASKS.md）。

@@ -119,6 +119,31 @@ public class CommandRegistration {
                                         return 1;
                                 });
 
+                // /mtrmap status - one-shot diagnostic for "the layer shows nothing" reports
+                LiteralArgumentBuilder<CommandSourceStack> statusNode = Commands.literal("status");
+                statusNode.executes(ctx -> {
+                        final net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+                        final String dimensionKey = mc.level == null ? null
+                                        : mc.level.dimension().location().getNamespace() + "/"
+                                                        + mc.level.dimension().location().getPath();
+                        final CommandSourceStack source = ctx.getSource();
+                        sendLine(source, "MTR Map Overlay " + modVersion("mtrmap") + " | MTR " + modVersion("mtr")
+                                        + " | JourneyMap " + present("journeymap")
+                                        + " | Xaero World Map " + present("xaeroworldmap")
+                                        + " | Xaero Minimap " + present("xaerominimap"));
+                        sendLine(source, "overlays: enabled=" + MTRMapConfig.INSTANCE.enabled.get()
+                                        + ", tracks=" + MTRMapConfig.INSTANCE.trackLinesEnabled.get()
+                                        + ", routes=" + MTRMapConfig.INSTANCE.routeLinesEnabled.get()
+                                        + ", stations=" + MTRMapConfig.INSTANCE.showStationLandmarks.get()
+                                        + ", platforms=" + MTRMapConfig.INSTANCE.showPlatformLandmarks.get()
+                                        + ", depots=" + MTRMapConfig.INSTANCE.showDepotLandmarks.get());
+                        sendLine(source, ClientNetworkSync.describeState());
+                        for (String line : com.lx862.mtrmap.mapdata.MapDataCache.describeState(dimensionKey)) {
+                                sendLine(source, line);
+                        }
+                        return 1;
+                });
+
                 // Config sub-commands
                 LiteralArgumentBuilder<CommandSourceStack> configNode = Commands.literal("config");
                 configNode.then(createBoolConfigNode("enabled", "MTR map overlays",
@@ -139,13 +164,31 @@ public class CommandRegistration {
                 configNode.then(createBoolConfigNode("trackLines", "Map track layer",
                                 () -> MTRMapConfig.INSTANCE.trackLinesEnabled.get(),
                                 v -> MTRMapConfig.INSTANCE.trackLinesEnabled.set(v)));
+                configNode.then(createBoolConfigNode("debugLog", "Verbose (debug) logging",
+                                () -> MTRMapConfig.INSTANCE.debugLog.get(),
+                                v -> MTRMapConfig.INSTANCE.debugLog.set(v)));
 
                 rootNode.then(modeNode);
                 rootNode.then(syncRoutesNode);
                 rootNode.then(syncLandmarksNode);
                 rootNode.then(testMarkerNode);
+                rootNode.then(statusNode);
                 rootNode.then(configNode);
                 dispatcher.register(rootNode);
+        }
+
+        private static void sendLine(CommandSourceStack source, String text) {
+                source.sendSuccess(() -> Component.literal(text).withStyle(ChatFormatting.AQUA), false);
+        }
+
+        private static String modVersion(String modId) {
+                return net.minecraftforge.fml.ModList.get().getModContainerById(modId)
+                                .map(container -> container.getModInfo().getVersion().toString())
+                                .orElse("absent");
+        }
+
+        private static String present(String modId) {
+                return net.minecraftforge.fml.ModList.get().isLoaded(modId) ? "yes" : "no";
         }
 
         private static LiteralArgumentBuilder<CommandSourceStack> createBoolConfigNode(String configName,

@@ -53,3 +53,10 @@
 - 操作者：Codex，2026-10-01 17:47。四目标独立服务端均完成开发环境启动；Xaero / JourneyMap 地图、四种图层状态、平移与缩放通过自动或用户手动验证。MTR 4.0.5 测试网格为 2 routes / 5 rails / 6 landmarks。
 - MC 1.20.4 JourneyMap 5 工具栏 icon 参数修复初始化异常。四目标 build、每个 25 项测试与产物检查通过；mod、pack、metadata 均为 1.5.1。
 - 代码/QA commit `4fce1a6` 已推送。本次打包的四个以 1.5.1 标注并包含 MC / MTR / loader 范围的 JAR 已加入 GitHub v1.5.1 release；保留原两个附件并更新中英文说明。production JAR 独立启动和跨机器联机未验证。
+
+## [完成] Forge 1.20.1 + MTR 3 移植（MTR 4 → MTR 3）
+- 操作者：DeepSeek Harness（Lead agent），2026-10-06 05:40–06:10。目录 `mtr-port/port-forge-mtr3`，来源为 `compat/mtr-4.0-mc-1.20` 的离线副本。
+- 范围：MTR 数据模型整体改写（`org.mtr.core.*` → `mtr.data.*` / `mtr.client.*`，`Position`/`Vector` → `BlockPos`/`Vec3`），
+  服务端采集从 `Simulator` 线程池改为每维度 `RailwayData`，客户端数据从 `MinecraftClientData` 改为静态 `ClientData`，
+  mixin 目标重建（删 3 个无目标 accessor，新增 `RailwayData#rails`、`Siding#path` accessor，客户端同步改挂 `ClientData#receivePacket`）。
+- 未做：Fabric 移植、MC 1.20.4 目标（已 fail fast）、实机图形验证。

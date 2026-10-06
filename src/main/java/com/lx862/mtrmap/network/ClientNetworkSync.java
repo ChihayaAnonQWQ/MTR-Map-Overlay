@@ -24,10 +24,21 @@ public final class ClientNetworkSync {
 
     /** After the first successful sync, refresh at least this often while playing. */
     private static final long MIN_REFRESH_MILLIS = 60_000;
+    /**
+     * MTR 3 loads its saved data incrementally (thousands of files are read over
+     * several ticks), so the first snapshot after joining a world can be missing
+     * routes/depots/sidings that were not read yet. Re-probe a few times right
+     * after every snapshot so the map converges to the finished network without
+     * waiting for the regular refresh interval.
+     */
+    private static final int FOLLOW_UP_PROBES = 6;
+    private static final long FOLLOW_UP_DELAY_MILLIS = 15_000;
 
     private static final Map<Integer, NetworkChunkAssembler> transfers = new ConcurrentHashMap<>();
     private static final Map<String, Long> knownHashes = new ConcurrentHashMap<>();
     private static long lastProbeMillis = 0;
+    private static int followUpProbesLeft = 0;
+    private static long nextFollowUpMillis = 0;
     private static int SCREEN_TRACE_TIMER = 0;
     /** Flips to true when a server answered at least once; flips back on world change. */
     private static boolean serverHasSupport = false;
@@ -130,6 +141,7 @@ public final class ClientNetworkSync {
                         dimension.landmarks.size());
             }
             JourneyMapIntegration.requestSync();
+            scheduleFollowUpProbes();
             if (firstOnServer) {
                 showActionbar("Full-network map sync active");
             }
@@ -143,6 +155,12 @@ public final class ClientNetworkSync {
 
     private static void markServerUnsupported() {
         serverUnsupportedBackoffUntil = System.currentTimeMillis() + 10 * 60_000;
+    }
+
+    /** See {@link #FOLLOW_UP_PROBES}: converge while MTR is still reading its data. */
+    private static void scheduleFollowUpProbes() {
+        followUpProbesLeft = FOLLOW_UP_PROBES;
+        nextFollowUpMillis = System.currentTimeMillis() + FOLLOW_UP_DELAY_MILLIS;
     }
 
     private static void showActionbar(String message) {
@@ -175,6 +193,15 @@ public final class ClientNetworkSync {
         }
 
         final long now = System.currentTimeMillis();
+
+        // Converge quickly after a snapshot: MTR may still have been reading its
+        // saved data when the first one was taken.
+        if (followUpProbesLeft > 0 && now >= nextFollowUpMillis) {
+            followUpProbesLeft--;
+            nextFollowUpMillis = now + FOLLOW_UP_DELAY_MILLIS;
+            requestProbe();
+        }
+
         // Probing is cheap (O(network) hash, no transfer), so run it on the
         // regular cadence; full snapshots are pulled only when a hash changes.
         final long interval = Math.max(MIN_REFRESH_MILLIS,
@@ -193,6 +220,8 @@ public final class ClientNetworkSync {
         knownHashes.clear();
         serverHasSupport = false;
         serverUnsupportedBackoffUntil = 0;
+        followUpProbesLeft = 0;
+        nextFollowUpMillis = 0;
         lastProbeMillis = System.currentTimeMillis()
                 - Math.max(MIN_REFRESH_MILLIS, MTRMapConfig.INSTANCE.networkSyncIntervalSeconds.get() * 1000L)
                 + 3_000; // first probe ~3 seconds after login
@@ -205,6 +234,21 @@ public final class ClientNetworkSync {
         knownHashes.clear();
         serverHasSupport = false;
         serverUnsupportedBackoffUntil = 0;
+        followUpProbesLeft = 0;
+        nextFollowUpMillis = 0;
+    }
+
+    /** Human readable transport state, surfaced by {@code /mtrmap status}. */
+    public static String describeState() {
+        final long now = System.currentTimeMillis();
+        return "network sync: enabled=" + MTRMapConfig.INSTANCE.networkSyncEnabled.get()
+                + ", server answered=" + serverHasSupport
+                + ", backing off=" + (now < serverUnsupportedBackoffUntil)
+                + ", dimensions known=" + knownHashes.size()
+                + ", transfers in flight=" + transfers.size()
+                + ", follow-up probes left=" + Math.max(0, followUpProbesLeft)
+                + ", last probe " + (lastProbeMillis == 0 ? "never"
+                        : ((now - lastProbeMillis) / 1000) + "s ago");
     }
 
 }

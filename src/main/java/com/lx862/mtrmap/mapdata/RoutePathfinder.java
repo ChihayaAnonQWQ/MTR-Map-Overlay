@@ -1,9 +1,10 @@
 package com.lx862.mtrmap.mapdata;
 
-import org.mtr.core.data.Platform;
-import org.mtr.core.data.Position;
-import org.mtr.core.data.Rail;
-import org.mtr.core.data.TransportMode;
+import com.lx862.mtrmap.mtr.MtrCompat;
+import mtr.data.Platform;
+import mtr.data.Rail;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,16 +20,22 @@ import java.util.Set;
  * <p>Builds a node graph from the rail set (rail node positions as graph
  * nodes, rails as weighted edges), anchors each platform to its own platform
  * rail (matching its endpoints, with a proximity fallback), and runs a
- * multi-source Dijkstra between consecutive platforms
- * so route lines follow the real track geometry (arcs included) instead of
- * straight stop-to-stop lines.</p>
+ * multi-source Dijkstra between consecutive platforms so route lines follow the
+ * real track geometry (arcs included) instead of straight stop-to-stop
+ * lines.</p>
  *
- * <p>Pure mtr-core types - unit-testable without a Minecraft install.</p>
+ * <p>MTR 3 note: rails live in {@code Map<BlockPos, Map<BlockPos, Rail>>} and
+ * carry no id, so a physical rail is identified by its unordered endpoint pair
+ * ({@link MtrCompat#railKey}); the corresponding Minecraft position type is
+ * {@link BlockPos} and a curve sample is a {@link Vec3}.</p>
  */
 public final class RoutePathfinder {
 
     private RoutePathfinder() {
     }
+
+    /** Rails whose endpoints are both within this many blocks may anchor a platform. */
+    private static final double PLATFORM_RAIL_SEARCH_RADIUS = 32.0;
 
     // -----------------------------------------------------------------------------------------------------------------
     // Graph
@@ -39,17 +46,19 @@ public final class RoutePathfinder {
      * traversal runs opposite to the rail's own geometry parameterization.
      */
     public static final class Edge {
-        public final Position from;
-        public final Position to;
+        public final BlockPos from;
+        public final BlockPos to;
         public final Rail rail;
         public final boolean reversed;
         public final double length;
-        Edge(Position from, Position to, Rail rail, boolean reversed) {
+        public final String railId;
+        Edge(BlockPos from, BlockPos to, Rail rail, boolean reversed, String railId) {
             this.from = from;
             this.to = to;
             this.rail = rail;
             this.reversed = reversed;
-            this.length = rail.railMath.getLength();
+            this.railId = railId;
+            this.length = rail.getLength();
         }
     }
 
@@ -58,69 +67,75 @@ public final class RoutePathfinder {
      * are directed rail traversals (both directions available).
      */
     public static final class Graph {
-        final Map<Position, List<Edge>> adjacency = new HashMap<>();
+        final Map<BlockPos, List<Edge>> adjacency = new HashMap<>();
         final Map<String, Rail> railById = new HashMap<>();
-        /** hexId -> [naturalStart, naturalEnd] node positions. */
-        final Map<String, Position[]> railEnds = new HashMap<>();
+        /** Identity lookup back to the rail id (MTR 3 rails carry no id of their own). */
+        final Map<Rail, String> railIdByIdentity = new java.util.IdentityHashMap<>();
+        /** rail id -> [naturalStart, naturalEnd] node positions. */
+        final Map<String, BlockPos[]> railEnds = new HashMap<>();
     }
 
     /**
-     * Build the graph from MTR's rail set and node-to-node rail index. The
-     * index may contain one or both directions per rail; missing reverse
-     * directions are added so the graph traverses both ways.
+     * Build the graph from MTR's node-to-node rail index
+     * ({@code RailwayData.rails} on the server, {@code ClientData.RAILS} on the
+     * client). The index may contain one or both directions per rail; missing
+     * reverse directions are added so the graph traverses both ways.
      */
-    public static Graph buildGraph(Iterable<Rail> rails,
-            Map<Position, ? extends Map<? extends Position, ? extends Rail>> positionsToRail) {
+    public static Graph buildGraph(Map<BlockPos, Map<BlockPos, Rail>> positionsToRail) {
         final Graph graph = new Graph();
+        if (positionsToRail == null) {
+            return graph;
+        }
 
-        if (rails != null) {
-            for (Rail rail : rails) {
-                if (rail != null && rail.isValid() && rail.getTransportMode() == TransportMode.TRAIN) {
-                    graph.railById.put(rail.getHexId(), rail);
+        for (Map.Entry<BlockPos, Map<BlockPos, Rail>> entry : positionsToRail.entrySet()) {
+            final Map<BlockPos, Rail> connections = entry.getValue();
+            if (connections == null) {
+                continue;
+            }
+            for (Map.Entry<BlockPos, Rail> railEntry : connections.entrySet()) {
+                final Rail rail = railEntry.getValue();
+                if (!MtrCompat.isDrawableRail(rail)) {
+                    continue;
                 }
+                final String railId = MtrCompat.railKey(entry.getKey(), railEntry.getKey());
+                graph.railById.putIfAbsent(railId, rail);
+                graph.railIdByIdentity.putIfAbsent(rail, railId);
+                addDirected(graph, entry.getKey(), railEntry.getKey(), rail, railId);
             }
         }
 
-        if (positionsToRail != null) {
-            for (Map.Entry<Position, ? extends Map<? extends Position, ? extends Rail>> entry : positionsToRail
-                    .entrySet()) {
-                for (final Map.Entry<? extends Position, ? extends Rail> railEntry : entry.getValue().entrySet()) {
-                    addDirected(graph, entry.getKey(), railEntry.getKey(), railEntry.getValue());
+        // Add reverse traversals for any rail that only has one direction indexed.
+        for (Map.Entry<String, Rail> entry : graph.railById.entrySet()) {
+            final BlockPos[] ends = graph.railEnds.get(entry.getKey());
+            if (ends == null) {
+                continue;
+            }
+            boolean hasReverse = false;
+            for (Edge edge : graph.adjacency.getOrDefault(ends[1], List.of())) {
+                if (edge.railId.equals(entry.getKey())) {
+                    hasReverse = true;
+                    break;
                 }
             }
-        }
-
-        // Add reverse traversals for any rail that only has one direction indexed
-        for (Rail rail : graph.railById.values()) {
-            final Position[] ends = graph.railEnds.get(rail.getHexId());
-            if (ends != null) {
-                boolean hasReverse = false;
-                for (Edge edge : graph.adjacency.getOrDefault(ends[1], List.of())) {
-                    if (edge.rail.getHexId().equals(rail.getHexId())) {
-                        hasReverse = true;
-                        break;
-                    }
-                }
-                if (!hasReverse) {
-                    addDirected(graph, ends[1], ends[0], rail);
-                }
+            if (!hasReverse) {
+                addDirected(graph, ends[1], ends[0], entry.getValue(), entry.getKey());
             }
         }
 
         return graph;
     }
 
-    private static void addDirected(Graph graph, Position from, Position to, Rail rail) {
+    private static void addDirected(Graph graph, BlockPos from, BlockPos to, Rail rail, String railId) {
         if (from == null || to == null || rail == null || from.equals(to)) {
             return;
         }
-        if (!graph.railById.containsKey(rail.getHexId())) {
+        if (!graph.railById.containsKey(railId)) {
             return;
         }
 
         // Determine the rail's own geometry orientation by comparing the
         // traversal start with the rail's parameterized start point.
-        final Position[] knownEnds = graph.railEnds.get(rail.getHexId());
+        final BlockPos[] knownEnds = graph.railEnds.get(railId);
         final boolean natural;
         if (knownEnds != null && from.equals(knownEnds[0]) && to.equals(knownEnds[1])) {
             natural = true;
@@ -131,21 +146,23 @@ public final class RoutePathfinder {
         }
 
         if (knownEnds == null) {
-            graph.railEnds.put(rail.getHexId(),
-                    natural ? new Position[]{from, to} : new Position[]{to, from});
+            graph.railEnds.put(railId, natural ? new BlockPos[]{from, to} : new BlockPos[]{to, from});
         }
 
         graph.adjacency.computeIfAbsent(from, k -> new ArrayList<>(2))
-                .add(new Edge(from, to, rail, !natural));
+                .add(new Edge(from, to, rail, !natural, railId));
     }
 
-    private static boolean isNaturalOrientation(Rail rail, Position from, Position to) {
+    private static boolean isNaturalOrientation(Rail rail, BlockPos from, BlockPos to) {
         try {
-            final double length = rail.railMath.getLength();
-            final org.mtr.core.tool.Vector startSample = rail.railMath.getPosition(0, false);
-            final org.mtr.core.tool.Vector endSample = rail.railMath.getPosition(length, false);
-            final double dStart = squareDistance(startSample.x(), startSample.z(), from.getX(), from.getZ());
-            final double dEnd = squareDistance(endSample.x(), endSample.z(), from.getX(), from.getZ());
+            final double length = rail.getLength();
+            final Vec3 startSample = rail.getPosition(0);
+            final Vec3 endSample = rail.getPosition(length);
+            if (startSample == null || endSample == null) {
+                return true;
+            }
+            final double dStart = squareDistance(startSample.x, startSample.z, from.getX() + 0.5, from.getZ() + 0.5);
+            final double dEnd = squareDistance(endSample.x, endSample.z, from.getX() + 0.5, from.getZ() + 0.5);
             return dStart <= dEnd;
         } catch (Throwable e) {
             return true;
@@ -158,7 +175,7 @@ public final class RoutePathfinder {
         return dx * dx + dz * dz;
     }
 
-    private static double squareDistance(Position a, Position b) {
+    private static double squareDistance(BlockPos a, BlockPos b) {
         return squareDistance(a.getX(), a.getZ(), b.getX(), b.getZ());
     }
 
@@ -185,11 +202,11 @@ public final class RoutePathfinder {
     public static final class SegmentPath {
         public final List<PathEdge> edges;
         /** Endpoint of the from-platform rail where the network path starts. */
-        public final Position entryNode;
+        public final BlockPos entryNode;
         /** Endpoint of the to-platform rail where the network path ends. */
-        public final Position exitNode;
+        public final BlockPos exitNode;
 
-        SegmentPath(List<PathEdge> edges, Position entryNode, Position exitNode) {
+        SegmentPath(List<PathEdge> edges, BlockPos entryNode, BlockPos exitNode) {
             this.edges = edges;
             this.entryNode = entryNode;
             this.exitNode = exitNode;
@@ -203,7 +220,7 @@ public final class RoutePathfinder {
      *         plus one extra closure entry for circular routes); an entry is
      *         {@code null} when no rail path was found for that segment. A
      *         caller must not replace a missing segment with a straight chord,
-     *         because route color is only valid when it lies on track geometry.
+     *         because route colour is only valid when it lies on track geometry.
      */
     public static List<SegmentPath> findRoutePath(Graph graph, List<Platform> platforms, boolean circular) {
         final int stopCount = platforms.size();
@@ -236,32 +253,38 @@ public final class RoutePathfinder {
             return null;
         }
 
-        final Position[] fromEnds = graph.railEnds.get(fromRail.getHexId());
-        final Position[] toEnds = graph.railEnds.get(toRail.getHexId());
+        final String fromRailId = railIdOf(graph, fromRail);
+        final String toRailId = railIdOf(graph, toRail);
+        if (fromRailId == null || toRailId == null) {
+            return null;
+        }
+
+        final BlockPos[] fromEnds = graph.railEnds.get(fromRailId);
+        final BlockPos[] toEnds = graph.railEnds.get(toRailId);
         if (fromEnds == null || toEnds == null) {
             return null;
         }
 
-        if (fromRail.getHexId().equals(toRail.getHexId())) {
+        if (fromRailId.equals(toRailId)) {
             // Adjacent platforms sharing one platform rail
             return new SegmentPath(List.of(), fromEnds[0], fromEnds[1]);
         }
 
-        final Set<String> skip = Set.of(fromRail.getHexId(), toRail.getHexId());
+        final Set<String> skip = Set.of(fromRailId, toRailId);
 
-        final Map<Position, Double> dist = new HashMap<>();
-        final Map<Position, Edge> prevEdge = new HashMap<>();
+        final Map<BlockPos, Double> dist = new HashMap<>();
+        final Map<BlockPos, Edge> prevEdge = new HashMap<>();
         final PriorityQueue<NodeEntry> queue = new PriorityQueue<>();
 
-        for (Position source : fromEnds) {
+        for (BlockPos source : fromEnds) {
             dist.put(source, 0.0);
             queue.add(new NodeEntry(source, 0.0));
         }
 
-        Position settledTarget = null;
+        BlockPos settledTarget = null;
         while (!queue.isEmpty()) {
             final NodeEntry entry = queue.poll();
-            final Position current = entry.node;
+            final BlockPos current = entry.node;
             if (entry.dist > dist.getOrDefault(current, Double.POSITIVE_INFINITY)) {
                 continue;
             }
@@ -272,7 +295,7 @@ public final class RoutePathfinder {
             }
 
             for (Edge edge : graph.adjacency.getOrDefault(current, List.of())) {
-                if (skip.contains(edge.rail.getHexId())) {
+                if (skip.contains(edge.railId)) {
                     continue;
                 }
                 final double nextDist = entry.dist + edge.length;
@@ -290,54 +313,67 @@ public final class RoutePathfinder {
         }
 
         final List<PathEdge> edges = new ArrayList<>();
-        Position node = settledTarget;
+        BlockPos node = settledTarget;
         while (prevEdge.containsKey(node)) {
             final Edge edge = prevEdge.get(node);
-            edges.add(new PathEdge(edge.rail.getHexId(), edge.reversed));
+            edges.add(new PathEdge(edge.railId, edge.reversed));
             node = edge.from;
         }
         java.util.Collections.reverse(edges);
-        final Position entryNode = node;
-
-        // When a target endpoint is already a source, the platforms are back
-        // to back and no intermediate rail edge is needed.
+        final BlockPos entryNode = node;
         return new SegmentPath(edges, entryNode, settledTarget);
+    }
+
+    private static String railIdOf(Graph graph, Rail rail) {
+        final String railId = graph.railIdByIdentity.get(rail);
+        if (railId != null) {
+            return railId;
+        }
+        for (Map.Entry<String, Rail> entry : graph.railById.entrySet()) {
+            if (entry.getValue() == rail) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 
     /**
      * Resolve the platform's anchor rail. Prefers its exact endpoint pair;
-     * falls back to the nearest
-     * platform-type rail in the graph.
+     * falls back to the nearest rail whose endpoints are both close to the
+     * platform centre.
      */
     static Rail getPlatformRail(Graph graph, Platform platform) {
-        // MTR 4.0 platforms retain endpoints, rather than a live rail field.
-        for (Rail rail : graph.railById.values()) {
-            Position[] ends = graph.railEnds.get(rail.getHexId());
-            if (ends != null && platform.containsPos(ends[0]) && platform.containsPos(ends[1])) return rail;
+        // MTR 3 platforms keep the two endpoint blocks of their platform rail.
+        if (platform == null) {
+            return null;
+        }
+        for (Map.Entry<String, BlockPos[]> entry : graph.railEnds.entrySet()) {
+            final BlockPos[] ends = entry.getValue();
+            if (platform.containsPos(ends[0]) && platform.containsPos(ends[1])) {
+                return graph.railById.get(entry.getKey());
+            }
         }
 
-        // Fallback: nearest platform-type rail to the platform's mid position
+        // Fallback: nearest rail to the platform's mid position.
+        final BlockPos mid = MtrCompat.midPos(platform);
+        if (mid == null) {
+            return null;
+        }
         Rail best = null;
         double bestDist = Double.MAX_VALUE;
-        final Position mid = platform.getMidPosition();
-        for (Rail rail : graph.railById.values()) {
-            if (!rail.isPlatform() || !rail.closeTo(mid, 32)) {
-                continue;
-            }
-            final Position[] ends = graph.railEnds.get(rail.getHexId());
-            if (ends == null) {
-                continue;
-            }
+        for (Map.Entry<String, BlockPos[]> entry : graph.railEnds.entrySet()) {
+            final BlockPos[] ends = entry.getValue();
             final double dist = Math.min(squareDistance(mid, ends[0]), squareDistance(mid, ends[1]));
-            if (dist < bestDist) {
-                bestDist = dist;
-                best = rail;
+            if (Math.sqrt(dist) > PLATFORM_RAIL_SEARCH_RADIUS || dist >= bestDist) {
+                continue;
             }
+            bestDist = dist;
+            best = graph.railById.get(entry.getKey());
         }
         return best;
     }
 
-    private record NodeEntry(Position node, double dist) implements Comparable<NodeEntry> {
+    private record NodeEntry(BlockPos node, double dist) implements Comparable<NodeEntry> {
         @Override
         public int compareTo(NodeEntry other) {
             return Double.compare(dist, other.dist);
@@ -345,8 +381,8 @@ public final class RoutePathfinder {
     }
 
     /**
-     * Resolve a complete route to the exact {@link MapTrack} strokes used by
-     * the gray TRACK layer. No rails are concatenated and no new sampling is
+     * Resolve a complete route to the exact {@link MapTrack} strokes used by the
+     * gray TRACK layer. No rails are concatenated and no new sampling is
      * performed; ROUTE therefore renders the same immutable polylines.
      */
     public static List<MapTrack> toTracks(Graph graph, List<Platform> platforms,
@@ -375,11 +411,16 @@ public final class RoutePathfinder {
             if (fromRail == null || toRail == null) {
                 return List.of();
             }
-            railIds.add(fromRail.getHexId());
+            final String fromRailId = railIdOf(graph, fromRail);
+            final String toRailId = railIdOf(graph, toRail);
+            if (fromRailId == null || toRailId == null) {
+                return List.of();
+            }
+            railIds.add(fromRailId);
             for (PathEdge edge : segments.get(i).edges) {
                 railIds.add(edge.hexId);
             }
-            railIds.add(toRail.getHexId());
+            railIds.add(toRailId);
         }
 
         final List<MapTrack> tracks = new ArrayList<>(railIds.size());

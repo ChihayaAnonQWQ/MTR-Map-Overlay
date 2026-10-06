@@ -134,19 +134,10 @@ public final class NetworkSnapshotCodec {
         public final List<MapRoute> routes = new ArrayList<>();
         public final List<MapTrack> tracks = new ArrayList<>();
         public final List<MapLandmark> landmarks = new ArrayList<>();
-        private final java.util.Set<Long> realPathRouteIds = new java.util.HashSet<>();
 
         public PendingDimension(String dimensionId, long snapshotHash) {
             this.dimensionId = dimensionId;
             this.snapshotHash = snapshotHash;
-        }
-
-        public void markRealPath(long routeId) {
-            realPathRouteIds.add(routeId);
-        }
-
-        public boolean hasRealPath(long routeId) {
-            return realPathRouteIds.contains(routeId);
         }
     }
 }

@@ -1,28 +1,46 @@
 package com.lx862.mtrmap;
 
-import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import java.util.HashMap;
+import com.lx862.mtrmap.mapdata.MapDataBuilder;
+import com.lx862.mtrmap.mapdata.MapLandmark;
+import com.lx862.mtrmap.mapdata.MapRoute;
+import mtr.data.DataCache;
+import mtr.data.Depot;
+import mtr.data.Platform;
+import mtr.data.Rail;
+import mtr.data.RailAngle;
+import mtr.data.RailType;
+import mtr.data.RailwayData;
+import mtr.data.Route;
+import mtr.data.SerializedDataBase;
+import mtr.data.Siding;
+import mtr.data.Station;
+import mtr.data.TransportMode;
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtIo;
+import net.minecraft.util.Tuple;
 import org.junit.jupiter.api.Test;
-import org.mtr.core.data.ClientData;
-import org.mtr.core.data.Depot;
-import org.mtr.core.data.Platform;
-import org.mtr.core.data.Position;
-import org.mtr.core.data.Rail;
-import org.mtr.core.data.Route;
-import org.mtr.core.data.Station;
-import org.mtr.core.data.TransportMode;
-import org.mtr.core.serializer.JsonReader;
-import org.mtr.core.simulation.Simulator;
-import org.mtr.core.tool.Angle;
-import org.mtr.libraries.com.google.gson.JsonObject;
-import org.mtr.libraries.com.google.gson.JsonArray;
-import org.mtr.libraries.com.google.gson.JsonParser;
-import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import org.msgpack.core.MessageBufferPacker;
+import org.msgpack.core.MessagePack;
+import org.msgpack.core.MessagePacker;
+import org.msgpack.core.MessageUnpacker;
+import org.msgpack.value.Value;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.ToLongFunction;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Generates a small MTR network into the TestWorld save so the unified mod
@@ -30,12 +48,49 @@ import java.util.Map;
  *
  * <p>Runs as a normal JUnit test but writes into {@code run/saves/TestWorld}.
  * Re-run it whenever the test world needs to be (re)populated.</p>
+ *
+ * <p><b>MTR 3 notes.</b> MTR 3 has no platform independent core: its data lives
+ * in the per-level {@code RailwayData} SavedData, which can only be constructed
+ * from a live {@code ServerLevel} (its constructor resolves
+ * {@code level.dimension()} and the server's world path) and whose writer,
+ * {@code RailwayDataFileSaveModule}, therefore cannot be called headlessly.
+ * The same files that module writes and that {@code RailwayData.load} reads back
+ * are written directly here instead:</p>
+ * <ul>
+ *   <li>one message-pack map per object under
+ *       {@code <world>/mtr/<namespace>/<path>/<collection>/<id % 100>/<id>};</li>
+ *   <li>an empty {@code data/mtr_train_data.dat}, because Minecraft only runs the
+ *       SavedData load function when that file already exists - without it MTR
+ *       would create a fresh {@code RailwayData} and never read the files.</li>
+ * </ul>
+ *
+ * <p>MTR 3 also generates a depot's driving path in game
+ * ({@code Depot.generateMainRoute} needs the running server and level) and
+ * validates rails against real rail node blocks, so this generator produces the
+ * network <em>data</em>; routes without a generated path are snapped onto the
+ * rails by {@code RoutePathfinder}, which is what the map draws for this world.</p>
  */
 @org.junit.jupiter.api.condition.EnabledIfSystemProperty(named = "mtrmap.generateTestWorld", matches = "true")
 class TestWorldGeneratorTest {
 
     private static final Path WORLD_MTR = Path.of(System.getProperty("mtrmap.testWorldMtrPath", "run/saves/TestWorld/mtr"));
-    private static final String DIMENSION = "minecraft/overworld";
+    /** MTR 3 keeps one data set per dimension: {@code <world>/mtr/<namespace>/<path>}. */
+    private static final Path DIMENSION_MTR = WORLD_MTR.resolve("minecraft/overworld");
+    /** SavedData file that makes MTR run {@code RailwayData.load()} on world load. */
+    private static final Path SAVED_DATA = WORLD_MTR.getParent().resolve("data").resolve("mtr_train_data.dat");
+
+    private static final long ALPHA_PLATFORM_ID = 1;
+    private static final long BRAVO_PLATFORM_ID = 2;
+    private static final long CHARLIE_PLATFORM_ID = 3;
+    private static final long SIDING_ID = 4;
+    private static final long ALPHA_STATION_ID = 11;
+    private static final long BRAVO_STATION_ID = 12;
+    private static final long CHARLIE_STATION_ID = 13;
+    private static final long EXPRESS_ROUTE_ID = 21;
+    private static final long LOCAL_ROUTE_ID = 22;
+    private static final long LOCAL_RETURN_ROUTE_ID = 23;
+    private static final long DEPOT_ID = 31;
+    private static final int PLATFORM_COLOR = 7829367;
 
     private static void deleteRecursively(java.io.File file) {
         final java.io.File[] children = file.listFiles();
@@ -47,273 +102,278 @@ class TestWorldGeneratorTest {
         file.delete();
     }
 
-    private static Position node(long x, long z) {
-        return new Position(x, 64, z);
-    }
-
-    private static Station station(Simulator simulator, String name, int color, Position p1, Position p2) {
-        final Station station = new Station(simulator);
-        final JsonObject json = new JsonObject();
-        json.addProperty("name", name);
-        json.addProperty("color", color);
-        json.add("position1", positionJson(p1));
-        json.add("position2", positionJson(p2));
-        station.updateData(new JsonReader(json));
-        if (!name.equals(station.getName())) {
-            throw new IllegalStateException("station name not applied: " + station.getName());
-        }
-        return station;
-    }
-
-    private static Angle angleOf(Position from, Position to) {
-        final double deg = Math.toDegrees(Math.atan2(to.getZ() - from.getZ(), to.getX() - from.getX()));
-        final int idx = ((int) Math.round(deg / 22.5) + 16) % 16;
-        return Angle.values()[idx];
+    private static BlockPos node(int x, int z) {
+        return new BlockPos(x, 64, z);
     }
 
     /**
-     * Tangent (travel direction) at polyline point i, smoothed so consecutive
-     * rails join without kinks: interior points use the angle bisector of the
-     * incoming and outgoing segments - this is what MTR's rail placement does,
-     * and its route path finder requires tangent continuity at joints.
+     * MTR 3 takes a plain constructor instead of MTR 4's {@code Rail.newRail}
+     * factory. Its facing convention, verified against the real rail class, is:
+     * the start facing is the travel direction at the start, the end facing is
+     * the <em>reverse</em> of the travel direction at the end. A straight rail is
+     * therefore {@code E -> W}; a quarter turn from heading east to heading south
+     * is {@code E -> N}, which MTR fits as an arc (the same shape the in-game rail
+     * tool produces).
      */
-    private static Angle tangentAt(List<Position> polyline, int i) {
-        if (i == 0) {
-            return angleOf(polyline.get(0), polyline.get(1));
-        }
-        if (i == polyline.size() - 1) {
-            return angleOf(polyline.get(i - 1), polyline.get(i));
-        }
-        final int inAngle = angleIndex(angleOf(polyline.get(i - 1), polyline.get(i)));
-        final int outAngle = angleIndex(angleOf(polyline.get(i), polyline.get(i + 1)));
-        int diff = outAngle - inAngle;
-        if (diff > 8) {
-            diff -= 16;
-        } else if (diff < -8) {
-            diff += 16;
-        }
-        int bisector = inAngle + diff / 2;
-        return Angle.values()[((bisector % 16) + 16) % 16];
-    }
-
-    private static int angleIndex(Angle angle) {
-        return ((int) Math.round(Math.toDegrees(angle.angleDegrees) / 22.5)) % 16;
-    }
-
-    private static Rail railOnSegment(List<Position> polyline, int seg, boolean platform) {
-        final Position a = polyline.get(seg);
-        final Position b = polyline.get(seg + 1);
-        final Angle ta = tangentAt(polyline, seg);
-        final Angle tb = tangentAt(polyline, seg + 1);
-        if (platform) {
-            return Rail.newPlatformRail(a, ta, b, tb,
-                    Rail.Shape.QUADRATIC, 0,
-                    new ObjectArrayList<>(), TransportMode.TRAIN);
-        }
-        return Rail.newRail(a, ta, b, tb, Rail.Shape.QUADRATIC, 0,
-                new ObjectArrayList<String>(), 1, 2, false, false, true, false, true, TransportMode.TRAIN);
-    }
-
-    private static Rail makePlatformRail(Position p1, Position p2) {
-        final Rail rail = Rail.newPlatformRail(p1, angleOf(p1, p2), p2, angleOf(p2, p1),
-                Rail.Shape.QUADRATIC, 0,
-                new ObjectArrayList<>(), TransportMode.TRAIN);
-        if (rail == null || !rail.isValid()) {
-            throw new IllegalStateException("platform rail invalid: " + p1 + " -> " + p2);
+    private static Rail makeRail(BlockPos start, RailAngle startFacing, BlockPos end, RailAngle endFacing,
+            RailType railType) {
+        final Rail rail = new Rail(start, startFacing, end, endFacing, railType, TransportMode.TRAIN);
+        if (!rail.isValid()) {
+            throw new IllegalStateException("rail invalid: " + start + " -> " + end);
         }
         return rail;
     }
 
-    private static Rail makeRail(Position p1, Position p2) {
-        final Rail rail = Rail.newRail(p1, angleOf(p1, p2), p2, angleOf(p2, p1),
-                Rail.Shape.QUADRATIC, 0,
-                new ObjectArrayList<>(), 1, 2, false, false, true, false, true, TransportMode.TRAIN);
-        if (rail == null || !rail.isValid()) {
-            throw new IllegalStateException("rail invalid: " + p1 + " -> " + p2);
-        }
-        return rail;
+    /**
+     * Registers one rail in both directions, like MTR's own node index does. A
+     * non-zero {@code savedRailId} makes {@link RailwayData#addRail} create the
+     * platform (or siding) that belongs to a PLATFORM/SIDING rail; the reverse
+     * direction passes 0 so no second saved rail is created.
+     */
+    private static void addRailPair(Map<BlockPos, Map<BlockPos, Rail>> rails, Set<Platform> platforms,
+            Set<Siding> sidings, BlockPos start, RailAngle startFacing, BlockPos end, RailAngle endFacing,
+            RailType railType, long savedRailId) {
+        RailwayData.addRail(rails, platforms, sidings, TransportMode.TRAIN, start, end,
+                makeRail(start, startFacing, end, endFacing, railType), savedRailId);
+        RailwayData.addRail(rails, platforms, sidings, TransportMode.TRAIN, end, start,
+                makeRail(end, endFacing, start, startFacing, railType), 0L);
     }
 
-    private static JsonObject positionJson(Position p) {
-        final JsonObject json = new JsonObject();
-        json.addProperty("x", p.getX());
-        json.addProperty("y", p.getY());
-        json.addProperty("z", p.getZ());
-        return json;
-    }
-
-    @Test
-    void generateNetwork() {
-        // IMPORTANT: every MTR object must be constructed with the Simulator as
-        // its Data back-reference, otherwise updateRailCache reads the wrong
-        // positionsToRail and the platforms are pruned as invalid on sync.
-        // Start from a clean save: stale files would leak old ids into sync
-        deleteRecursively(WORLD_MTR.toFile());
-        final Simulator simulator = new Simulator(DIMENSION, new String[]{DIMENSION}, WORLD_MTR, false);
-        // Corridor nodes along z=0, then a bend down to the south
-        final Position n0 = node(0, 0);
-        final Position n1 = node(80, 0);
-        final Position n2 = node(180, 80);
-        final Position n3 = node(280, 80);
-        final Position n4 = node(380, 0);
-        final Position n5 = node(480, 0);
-
-        // One tangent-continuous polyline: n0..n5 then the siding straight on
-        final List<Position> polyline = List.of(n0, n1, n2, n3, n4, n5,
-                node(600, 0));
-        // Rails: platform rails at each station + plain connecting rails
-        final Rail railAlpha = railOnSegment(polyline, 0, true);
-        final Rail shared = railOnSegment(polyline, 1, false);
-        final Rail railBravo = railOnSegment(polyline, 2, true);
-        final Rail bend = railOnSegment(polyline, 3, false);
-        final Rail railCharlie = railOnSegment(polyline, 4, true);
-
-        // Platforms (one per platform rail); MTR generates a random unique id
-        final Platform alpha = platform(simulator, n0, n1, railAlpha, "Alpha Platform");
-        final Platform bravo = platform(simulator, n2, n3, railBravo, "Bravo Platform");
-        final Platform charlie = platform(simulator, n4, n5, railCharlie, "Charlie Platform");
-
-        // Stations covering their platforms (for JourneyMap landmarks + waypoints)
-        final Station stationAlpha = station(simulator, "Alpha", 15073280, node(-20, -20), node(100, 20));
-        final Station stationBravo = station(simulator, "Bravo", 28440, node(200, 60), node(340, 100));
-        final Station stationCharlie = station(simulator, "Charlie", 22016, node(360, -20), node(500, 20));
-
-        // Routes: Express (Alpha->Bravo), Local (Alpha->Bravo->Charlie), Local Return
-        final Route express = route(simulator, "Express", 15073280, List.of(alpha, bravo));
-        final Route local = route(simulator, "Local", 28440, List.of(alpha, bravo, charlie));
-        final Route localReturn = route(simulator, "Local Return", 28440, List.of(charlie, bravo, alpha));
-
-        // Siding continues the polyline (segment 5) with tangent continuity
-        final Position s0 = node(480, 0);
-        final Position s1 = node(600, 0);
-        final Rail sidingRail = Rail.newSidingRail(s0, tangentAt(polyline, 5), s1, tangentAt(polyline, 6),
-                Rail.Shape.QUADRATIC, 0,
-                new ObjectArrayList<String>(), TransportMode.TRAIN);
-        final org.mtr.core.data.Siding siding = new org.mtr.core.data.Siding(s0, s1, 0, TransportMode.TRAIN, simulator);
-
-        simulator.sidings.add(siding);
-        simulator.rails.add(sidingRail);
-
-        final Depot depot = new Depot(TransportMode.TRAIN, simulator);
-        final JsonObject depotJson = new JsonObject();
-        depotJson.addProperty("name", "Test Depot");
-        final org.mtr.libraries.com.google.gson.JsonArray routeIds = new org.mtr.libraries.com.google.gson.JsonArray();
-        routeIds.add(local.getId());
-        depotJson.add("routeIds", routeIds);
-        depotJson.addProperty("color", 28440);
-        depotJson.add("position1", positionJson(node(470, -10)));
-        depotJson.add("position2", positionJson(node(610, 10)));
-        depot.updateData(new JsonReader(depotJson));
-        depot.routes.add(local);
-        simulator.depots.add(depot);
-
-        simulator.stations.add(stationAlpha);
-        simulator.stations.add(stationBravo);
-        simulator.stations.add(stationCharlie);
-        simulator.platforms.add(alpha);
-        simulator.platforms.add(bravo);
-        simulator.platforms.add(charlie);
-        simulator.routes.add(express);
-        simulator.routes.add(local);
-        simulator.routes.add(localReturn);
-        simulator.rails.add(railAlpha);
-        simulator.rails.add(shared);
-        simulator.rails.add(railBravo);
-        simulator.rails.add(bend);
-        simulator.rails.add(railCharlie);
-        System.out.println("[TestWorldGenerator] immediately after adds: platforms=" + simulator.platforms.size()
-                + " alpha.isInvalidSavedRail=" + alpha.isInvalidSavedRail(simulator)
-                + " positionsToRailContainsN0=" + simulator.positionsToRail.containsKey(n0));
-        simulator.sync();
-        System.out.println("[TestWorldGenerator] platform ids: alpha=" + alpha.getId()
-                + " bravo=" + bravo.getId() + " charlie=" + charlie.getId()
-                + " sidingId=" + siding.getId());
-        System.out.println("[TestWorldGenerator] pre-generate: depot path size=" + depot.getPath().size()
-                + " depot savedRails=" + depot.savedRails.size()
-                + " siding valid=" + sidingRail.isValid() + " isSiding=" + sidingRail.isSiding());
-        // Drive MTR's own route generation to completion: generateDepots()
-        // queues the path finders (generateMainRoute), tick() progresses them
-        // (findPathTick - normally driven by the server's tick loop).
-        org.mtr.core.data.Depot.generateDepots(simulator, new ObjectArrayList<>(List.of(depot)));
-        for (int i = 0; i < 5000 && depot.getPath().isEmpty(); i++) {
-            simulator.tick();
-        }
-        System.out.println("[TestWorldGenerator] post-generate: depot path size=" + depot.getPath().size()
-                + " status=" + depot.getLastGeneratedStatus());
-        depot.getFailedPlatformIds(
-                (startId, endId) -> System.out.println("[TestWorldGenerator] failed stretch: " + startId + " -> " + endId),
-                sidingCount -> System.out.println("[TestWorldGenerator] failed siding count: " + sidingCount));
-        System.out.println("[TestWorldGenerator] post-sync positionsToRail keys:");
-        simulator.positionsToRail.keySet().forEach(k ->
-                System.out.println("[TestWorldGenerator]   key: " + k.getX() + "," + k.getY() + "," + k.getZ()));
-        System.out.println("[TestWorldGenerator] pre-sync: platforms=" + simulator.platforms.size()
-                + " alpha.invalid=" + alpha.isInvalidSavedRail(simulator)
-                + " alpha.inSet=" + simulator.platforms.contains(alpha));
-        final Object lookup = simulator.positionsToRail.containsKey(n0) ? simulator.positionsToRail.get(n0).get(n1) : null;
-        System.out.println("[TestWorldGenerator] alpha serialized: " + alpha);
-        System.out.println("[TestWorldGenerator] lookup n0->n1 identity==railAlpha: " + (lookup == railAlpha)
-                + " alpha.isValid=" + alpha.isValid());
-        System.out.println("[TestWorldGenerator] after sync: platforms=" + simulator.platforms.size()
-                + " routes=" + simulator.routes.size() + " rails=" + simulator.rails.size());
-        simulator.platforms.forEach(platform -> System.out.println("[TestWorldGenerator]   platform valid="
-                + platform.isValid() + " invalidSavedRail=" + platform.isInvalidSavedRail(simulator)
-                ));
-        simulator.save();
-        simulator.stop();
-        System.out.println("[TestWorldGenerator] world data written to " + WORLD_MTR.toAbsolutePath());
-    }
-
-    private static Platform platform(Simulator simulator, Position p1, Position p2, Rail rail, String name) {
-        final Platform platform = new Platform(p1, p2, TransportMode.TRAIN, simulator);
-
-        final JsonObject json = new JsonObject();
-        json.addProperty("name", name);
-        json.addProperty("color", 7829367);
-        platform.updateData(new JsonReader(json));
+    /** The platform MTR created for a platform rail, ready for its display name. */
+    private static Platform platform(Set<Platform> platforms, long id, String name) {
+        final Platform platform = platforms.stream().filter(candidate -> candidate.id == id).findFirst()
+                .orElseThrow(() -> new IllegalStateException("platform " + id + " was not created"));
+        platform.name = name;
+        platform.color = PLATFORM_COLOR;
         return platform;
     }
 
-    private static Route route(Simulator simulator, String name, int color, List<Platform> platforms) {
-        final Route route = new Route(TransportMode.TRAIN, simulator);
-        final JsonObject json = new JsonObject();
-        json.addProperty("name", name);
-        json.addProperty("color", color);
-        final org.mtr.libraries.com.google.gson.JsonArray array = new org.mtr.libraries.com.google.gson.JsonArray();
-        for (Platform platform : platforms) {
-            final JsonObject entry = new JsonObject();
-            entry.addProperty("platformId", platform.getId());
-            array.add(entry);
-        }
-        json.add("routePlatformData", array);
-        route.updateData(new JsonReader(json));
+    private static Siding siding(Set<Siding> sidings, long id, String name) {
+        final Siding siding = sidings.stream().filter(candidate -> candidate.id == id).findFirst()
+                .orElseThrow(() -> new IllegalStateException("siding " + id + " was not created"));
+        siding.name = name;
+        return siding;
+    }
 
-        // Re-wire platform references by list order (updateData rebuilds the list)
-        for (int i = 0; i < platforms.size(); i++) {
-            route.getRoutePlatforms().get(i).platform = platforms.get(i);
+    /** MTR 3 has no JSON data constructor: names, colours and area corners are public fields. */
+    private static Station station(long id, String name, int color, BlockPos corner1, BlockPos corner2) {
+        final Station station = new Station(id);
+        station.name = name;
+        station.color = color;
+        station.corner1 = new Tuple<>(corner1.getX(), corner1.getZ());
+        station.corner2 = new Tuple<>(corner2.getX(), corner2.getZ());
+        return station;
+    }
+
+    /** MTR 3 keeps route stops as {@code Route.RoutePlatform} entries carrying the platform id. */
+    private static Route route(long id, String name, int color, List<Platform> stops) {
+        final Route route = new Route(id, TransportMode.TRAIN);
+        route.name = name;
+        route.color = color;
+        for (Platform platform : stops) {
+            route.platformIds.add(new Route.RoutePlatform(platform.id));
         }
-        if (route.getRoutePlatforms().size() != platforms.size()) {
+        if (route.platformIds.size() != stops.size()) {
             throw new IllegalStateException("route platform data not applied for " + name);
-        }
-        if (!name.equals(route.getName())) {
-            throw new IllegalStateException("route name not applied: " + route.getName());
         }
         return route;
     }
 
-    private static JsonObject json(String json) {
-        return JsonParser.parseString(json).getAsJsonObject();
+    private static Depot depot(long id, String name, int color, BlockPos corner1, BlockPos corner2, List<Route> routes) {
+        final Depot depot = new Depot(id, TransportMode.TRAIN);
+        depot.name = name;
+        depot.color = color;
+        depot.corner1 = new Tuple<>(corner1.getX(), corner1.getZ());
+        depot.corner2 = new Tuple<>(corner2.getX(), corner2.getZ());
+        for (Route route : routes) {
+            depot.routeIds.add(route.id);
+        }
+        return depot;
     }
 
-    private static Map<Position, Map<Position, org.mtr.core.data.Rail>> index(List<org.mtr.core.data.Rail> rails) {
-        final Map<Position, Map<Position, org.mtr.core.data.Rail>> index = new HashMap<>();
-        for (org.mtr.core.data.Rail rail : rails) {
-            final org.mtr.core.tool.Vector v1 = rail.railMath.getPosition(0, false);
-            final org.mtr.core.tool.Vector v2 = rail.railMath.getPosition(rail.railMath.getLength(), false);
-            final Position p1 = new Position((long) v1.x(), 64, (long) v1.z());
-            final Position p2 = new Position((long) v2.x(), 64, (long) v2.z());
-            index.computeIfAbsent(p1, k -> new HashMap<>()).put(p2, rail);
-            index.computeIfAbsent(p2, k -> new HashMap<>()).put(p1, rail);
+    /** MTR writes one message-pack file per object: {@code <collection>/<id % 100>/<id>}. */
+    private static <T extends SerializedDataBase> void writeDataFiles(Path folder, Collection<T> data,
+            ToLongFunction<T> idOf) throws IOException {
+        for (T element : data) {
+            final long id = idOf.applyAsLong(element);
+            final Path directory = folder.resolve(Long.toString(id % 100));
+            Files.createDirectories(directory);
+            try (MessagePacker packer = MessagePack.newDefaultPacker(
+                    Files.newOutputStream(directory.resolve(Long.toString(id))))) {
+                packer.packMapHeader(element.messagePackLength());
+                element.toMessagePack(packer);
+            }
         }
-        return index;
+    }
+
+    /**
+     * MTR stores the rail network as one file per node, keyed by
+     * {@code BlockPos.asLong()}, listing that node's connections.
+     */
+    private static void writeRailFiles(Path folder, Map<BlockPos, Map<BlockPos, Rail>> rails) throws IOException {
+        for (Map.Entry<BlockPos, Map<BlockPos, Rail>> entry : rails.entrySet()) {
+            final long nodeId = entry.getKey().asLong();
+            final Path directory = folder.resolve(Long.toString(nodeId % 100));
+            Files.createDirectories(directory);
+            try (MessagePacker packer = MessagePack.newDefaultPacker(
+                    Files.newOutputStream(directory.resolve(Long.toString(nodeId))))) {
+                packer.packMapHeader(2);
+                packer.packString("node_pos").packLong(nodeId);
+                packer.packString("rail_connections").packArrayHeader(entry.getValue().size());
+                for (Map.Entry<BlockPos, Rail> connection : entry.getValue().entrySet()) {
+                    packer.packMapHeader(connection.getValue().messagePackLength() + 1);
+                    packer.packString("node_pos").packLong(connection.getKey().asLong());
+                    connection.getValue().toMessagePack(packer);
+                }
+            }
+        }
+    }
+
+    @Test
+    void generateNetwork() throws IOException {
+        // IMPORTANT: start from a clean save: stale files would leak old ids into the data set.
+        deleteRecursively(WORLD_MTR.toFile());
+        Files.deleteIfExists(SAVED_DATA);
+
+        // Corridor: east along z=0, quarter turn south, south, quarter turn west, then west.
+        final BlockPos n0 = node(0, 0);
+        final BlockPos n1 = node(80, 0);
+        final BlockPos n2 = node(160, 80);
+        final BlockPos n3 = node(160, 180);
+        final BlockPos n4 = node(80, 260);
+        final BlockPos n5 = node(-40, 260);
+        final BlockPos n6 = node(-160, 260);
+
+        final Map<BlockPos, Map<BlockPos, Rail>> rails = new LinkedHashMap<>();
+        final Set<Platform> platforms = new LinkedHashSet<>();
+        final Set<Siding> sidings = new LinkedHashSet<>();
+
+        // Rails: platform rails at each station, quarter-arc connectors, then a siding
+        addRailPair(rails, platforms, sidings, n0, RailAngle.E, n1, RailAngle.W, RailType.PLATFORM,
+                ALPHA_PLATFORM_ID);
+        addRailPair(rails, platforms, sidings, n1, RailAngle.E, n2, RailAngle.N, RailType.IRON, 0L);
+        addRailPair(rails, platforms, sidings, n2, RailAngle.S, n3, RailAngle.N, RailType.PLATFORM,
+                BRAVO_PLATFORM_ID);
+        addRailPair(rails, platforms, sidings, n3, RailAngle.S, n4, RailAngle.E, RailType.IRON, 0L);
+        addRailPair(rails, platforms, sidings, n4, RailAngle.W, n5, RailAngle.E, RailType.PLATFORM,
+                CHARLIE_PLATFORM_ID);
+        addRailPair(rails, platforms, sidings, n5, RailAngle.W, n6, RailAngle.E, RailType.SIDING, SIDING_ID);
+
+        // Platforms and the siding are created by addRail from the saved rail's endpoints
+        final Platform alpha = platform(platforms, ALPHA_PLATFORM_ID, "Alpha Platform");
+        final Platform bravo = platform(platforms, BRAVO_PLATFORM_ID, "Bravo Platform");
+        final Platform charlie = platform(platforms, CHARLIE_PLATFORM_ID, "Charlie Platform");
+        final Siding siding = siding(sidings, SIDING_ID, "Test Siding");
+
+        // Stations covering their platforms (for JourneyMap landmarks + waypoints)
+        final Set<Station> stations = new LinkedHashSet<>();
+        stations.add(station(ALPHA_STATION_ID, "Alpha", 15073280, node(-20, -20), node(100, 20)));
+        stations.add(station(BRAVO_STATION_ID, "Bravo", 28440, node(140, 60), node(180, 200)));
+        stations.add(station(CHARLIE_STATION_ID, "Charlie", 22016, node(-60, 240), node(100, 280)));
+
+        // Routes: Express (Alpha->Bravo), Local (Alpha->Bravo->Charlie), Local Return
+        final Set<Route> routes = new LinkedHashSet<>();
+        routes.add(route(EXPRESS_ROUTE_ID, "Express", 15073280, List.of(alpha, bravo)));
+        final Route local = route(LOCAL_ROUTE_ID, "Local", 28440, List.of(alpha, bravo, charlie));
+        routes.add(local);
+        routes.add(route(LOCAL_RETURN_ROUTE_ID, "Local Return", 28440, List.of(charlie, bravo, alpha)));
+
+        final Set<Depot> depots = new LinkedHashSet<>();
+        final Depot depot = depot(DEPOT_ID, "Test Depot", 28440, node(-170, 240), node(-20, 280), List.of(local));
+        depots.add(depot);
+
+        // The network must be valid MTR 3 data before it is written out
+        assertFalse(rails.isEmpty());
+        for (Map<BlockPos, Rail> connections : rails.values()) {
+            for (Rail rail : connections.values()) {
+                assertTrue(rail.isValid(), "generated rails must be valid MTR 3 rails");
+                assertTrue(rail.getLength() > 0, "generated rails must have geometry");
+            }
+        }
+        for (Platform platform : platforms) {
+            assertFalse(platform.isInvalidSavedRail(rails),
+                    "every platform must own its platform rail: " + platform.name);
+        }
+
+        System.out.println("[TestWorldGenerator] rail nodes=" + rails.size()
+                + " platforms=" + platforms.size() + " sidings=" + sidings.size()
+                + " stations=" + stations.size() + " routes=" + routes.size() + " depots=" + depots.size()
+                + " positionsToRailContainsN0=" + rails.containsKey(n0));
+        for (Platform platform : platforms) {
+            System.out.println("[TestWorldGenerator]   platform id=" + platform.id + " name=" + platform.name
+                    + " midPos=" + platform.getMidPos() + " invalidSavedRail=" + platform.isInvalidSavedRail(rails));
+        }
+        System.out.println("[TestWorldGenerator]   siding id=" + siding.id + " railLength=" + siding.railLength);
+        // MTR 3: Depot.generateMainRoute(MinecraftServer, Level, ...) drives MTR's own route generation and
+        // needs a live server, so the driving path is generated in game; without one the map snaps the route
+        // onto the rail graph with RoutePathfinder, which is exactly what the TestWorld is meant to show.
+        System.out.println("[TestWorldGenerator]   depot id=" + depot.id + " routeIds=" + depot.routeIds);
+
+        // Exercise the ported map layer with the generated network (no game required)
+        final DataCache dataCache = new DataCache(stations, platforms, sidings, routes, depots, Set.of());
+        dataCache.sync();
+        final MapDataBuilder.Input input = new MapDataBuilder.Input();
+        input.dataCache = dataCache;
+        input.routes = routes;
+        input.stations = stations;
+        input.depots = depots;
+        input.rails = rails;
+        input.fallbackPathfinding = true;
+        final MapDataBuilder.Result result = MapDataBuilder.build(input);
+        System.out.println("[TestWorldGenerator] map layers: tracks=" + result.tracks.size()
+                + " routes=" + result.routes.size() + " landmarks=" + result.landmarks.size());
+        for (MapRoute route : result.routes) {
+            System.out.println("[TestWorldGenerator]   route " + route.name
+                    + " stops=" + route.stops.size() + " tracks=" + route.trackIds.size());
+        }
+        for (MapLandmark landmark : result.landmarks) {
+            System.out.println("[TestWorldGenerator]   landmark " + landmark.type() + " " + landmark.name()
+                    + " @" + landmark.x() + "," + landmark.y() + "," + landmark.z()
+                    + " routes=" + landmark.hasRoutes());
+        }
+
+        // MTR 3's save layout: one message-pack file per object plus the SavedData marker below
+        Files.createDirectories(DIMENSION_MTR);
+        writeDataFiles(DIMENSION_MTR.resolve("stations"), stations, entry -> entry.id);
+        writeDataFiles(DIMENSION_MTR.resolve("platforms"), platforms, entry -> entry.id);
+        // The lambda parameter must not shadow the local variables above.
+        writeDataFiles(DIMENSION_MTR.resolve("sidings"), sidings, entry -> entry.id);
+        writeDataFiles(DIMENSION_MTR.resolve("routes"), routes, entry -> entry.id);
+        writeDataFiles(DIMENSION_MTR.resolve("depots"), depots, entry -> entry.id);
+        writeRailFiles(DIMENSION_MTR.resolve("rails"), rails);
+
+        // Minecraft only calls the SavedData load function when this file exists; the empty tag makes
+        // RailwayData.load() run, which then reads the message-pack files written above.
+        Files.createDirectories(SAVED_DATA.getParent());
+        NbtIo.writeCompressed(new CompoundTag(), SAVED_DATA.toFile());
+
+        // The data must survive MTR's own codec round trip, otherwise the files above would only
+        // contain in-memory shells.
+        final Rail original = rails.get(n0).get(n1);
+        final Rail restored = new Rail(stringValueMap(pack(original)));
+        assertEquals(original.getLength(), restored.getLength(), 1.0E-6,
+                "rail geometry must survive MTR 3's message-pack round trip");
+        assertTrue(restored.isValid(), "a deserialised rail must still be a valid rail");
+
+        System.out.println("[TestWorldGenerator] MTR 3 world data written to " + DIMENSION_MTR.toAbsolutePath());
+        System.out.println("[TestWorldGenerator] SavedData file written to " + SAVED_DATA.toAbsolutePath());
+    }
+
+    /** Packs one object the way MTR's file writer does: map header around the object's own fields. */
+    private static byte[] pack(SerializedDataBase data) throws IOException {
+        final MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
+        packer.packMapHeader(data.messagePackLength());
+        data.toMessagePack(packer);
+        packer.close();
+        return packer.toByteArray();
+    }
+
+    private static Map<String, Value> stringValueMap(byte[] bytes) throws IOException {
+        final MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bytes);
+        final Map<Value, Value> raw = unpacker.unpackValue().asMapValue().map();
+        unpacker.close();
+        final Map<String, Value> map = new HashMap<>();
+        raw.forEach((key, value) -> map.put(key.asStringValue().asString(), value));
+        return map;
     }
 }

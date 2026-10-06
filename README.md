@@ -1,107 +1,168 @@
 <div align="center">
   <img src="src/main/resources/pack.png" alt="MTR Map Overlay logo" width="128" height="128">
 
-  <h1>MTR Map Overlay</h1>
+  <h1>MTR Map Overlay — MTR 3 / Forge 1.20.1 port</h1>
 
-  <p>Minecraft Transit Railway routes, rails and stations on your map.</p>
+  <p>Minecraft Transit Railway routes, rails and stations on your map — ported from MTR 4 to MTR 3.</p>
 
-  <p><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="https://github.com/teamCreating/MTR-Map-Overlay/tree/compat/mtr-4.0-mc-1.20">MC 1.20 compatibility branch</a></p>
+  <p><a href="README.zh-CN.md">简体中文</a> · <a href="MTR3-PORT-REPORT.md">Port report</a> · <a href="https://github.com/teamCreating/MTR-Map-Overlay">Upstream project</a></p>
 </div>
 
-MTR Map Overlay is a Minecraft 1.20.1 / 1.20.4 add-on for **Forge or Fabric**. It reads [Minecraft Transit Railway (MTR)](https://github.com/Minecraft-Transit-Railway/Minecraft-Transit-Railway) data and integrates with Xaero's World Map and JourneyMap. It does not depend on MTR Surveyor's map.
+> **Unofficial port.** This tree is a community port of [MTR Map Overlay](https://github.com/teamCreating/MTR-Map-Overlay)
+> from **MTR 4** to **MTR 3** on Forge 1.20.1, **ported by [DeepSeek](https://www.deepseek.com/)** (DeepSeek Harness agent).
+> It is not published or endorsed by the upstream authors.
+
+> ### Do NOT report problems with this branch to the original project
+>
+> **Anything caused by this port belongs in *this* repository's issue tracker** — MTR 3 support, the data mapping, the
+> snapshot/network layer, crashes, wrongly coloured or missing routes, dependency ranges, build failures, and so on.
+> The original project's team did not write, review or test this branch, so please **do not send them bug reports,
+> crash logs or questions about it** (and do not ping them in their issues/PRs about it).
+> Only contact the upstream project about the original MTR 4 mod and its own releases.
+>
+> **Original mod:** MTR Map Overlay — original copyright © 2025 **AmberFrost**; later upstream work maintained by
+> **BenLi06** / [teamCreating](https://github.com/teamCreating).
+> Upstream repository: <https://github.com/teamCreating/MTR-Map-Overlay>
+> Map integrations and the sync protocol were designed by them; this branch only adapts the MTR data layer.
+
+MTR Map Overlay is an add-on for [Minecraft Transit Railway (MTR)](https://github.com/Minecraft-Transit-Railway/Minecraft-Transit-Railway).
+It reads MTR's network data and draws it on **Xaero's World Map** and **JourneyMap**. It does not depend on MTR Surveyor's map.
+
+## What this port changes
+
+**The MTR 4 → MTR 3 port in this branch was carried out by [DeepSeek](https://www.deepseek.com/) (DeepSeek Harness agent)
+in October 2026**, on top of upstream's `compat/mtr-4.0-mc-1.20` branch. Upstream's branch targets **MTR 4.0.5**, whose data
+model lives in `org.mtr.core.*` and brings its own `Position` / `Vector` / `RailMath` / `SimplifiedRoute` types plus a
+`Simulator` thread pool. MTR 3 is a different model: `mtr.data.*` / `mtr.client.*`, Minecraft types (`BlockPos`, `Vec3`),
+one `RailwayData` per level and static `ClientData` collections. This port therefore rewrites the MTR access layer; the map
+rendering, the network protocol and the Xaero / JourneyMap integrations are unchanged.
+
+| MTR 4 | MTR 3 in this port |
+| --- | --- |
+| `org.mtr.core.data.Position` / `tool.Vector` | `net.minecraft.core.BlockPos` / `net.minecraft.world.phys.Vec3` |
+| `Rail.railMath.getLength()` / `getPosition(d, false)` | `Rail.getLength()` / `Rail.getPosition(d)` |
+| `Rail.getHexId()` (rails carry ids) | rails have no id — identified by their unordered node pair |
+| `Route.getRoutePlatforms()` / `RoutePlatformData` | `Route.platformIds` (`Route.RoutePlatform`: `platformId`, `customDestination`) |
+| `Station.savedRails` | `DataCache.platformIdToStation` (reverse index) |
+| `MinecraftClientData.getInstance()` | static `mtr.client.ClientData` + `ClientData.DATA_CACHE` |
+| `Main` + per-dimension `Simulator` threads | `RailwayData.getInstance(level)` per `ServerLevel`, on the server thread |
+| `Depot.getPath()` (generated driving paths) | `Siding.path` (private, read through a mixin `@Accessor`) + `Depot.routeIds` |
+| `@Mixin MinecraftClientData#sync()` | `@Mixin ClientData#receivePacket()` (MTR 3's single full-data sync entry point) |
+| `Main` / `Init.main` / `Simulator#sync` mixins | removed — no MTR 3 counterpart (`Simulator#sync` was an empty override) |
+
+Two new pieces carry the port:
+
+* `mtr/MtrCompat.java` — every MTR 3 specific detail (dimension keys, rail identification, station/platform lookups, null guards).
+* `mapdata/MapDataBuilder.java` — **one** snapshot builder shared by the client cache and the server snapshot. MTR 4 needed two
+  parallel implementations because its core and mod data models differed; MTR 3 has a single `mtr.data` model.
+
+Two bugs found while validating against a real 2006-rail city network are fixed here and covered by tests:
+
+1. **Generated driving paths were matched by object identity.** MTR deserialises each `Siding` (and the `Rail` objects inside its
+   path) separately from the rail map, so identity matching failed for every real path and *all* routes stayed grey — worse,
+   those routes were then skipped by the fallback because they were already marked as "has a real path". Rails are now matched
+   by geometry (node pair), and a route is only excluded from the fallback when its generated path actually produced geometry.
+2. **Racing MTR's incremental load after joining a world.** MTR reads its saved network over several ticks, so the first
+   snapshot right after joining could miss routes/depots/sidings. The client now re-probes 6 times at 15 s intervals after
+   every snapshot and converges to the finished network automatically.
+
+## Compatibility
+
+| Component | Supported |
+| --- | --- |
+| Minecraft | **1.20.1** exactly (Forge 47.x) |
+| MTR | **3.2.x** — built and tested against `1.20.1-3.2.2-hotfix-2`; the whole test suite also passes against the third-party fork [Yomi's Minecraft Transit Railway](https://modrinth.com/mod/ymtr) `1.20.1-3.6.3` (identical API surface for everything used) |
+| Xaero's World Map | **1.40.0+** (verified with 1.40.11 / 1.44.2 / 1.45.0 / 1.47.0; the `GuiMap` fields and the `MapProcessor → MapWorld → MapDimension` chain are identical across them) |
+| Xaero's Minimap | any 1.20.1 version (legacy waypoint cleanup is best-effort and cannot break the tick) |
+| JourneyMap | optional, **1.20.1-6.0.0+** (v2 API, probed at runtime; JourneyMap 5 disables the integration instead of failing to load) |
+| Server side | optional — install the same jar for whole-network sync; without it the client falls back to MTR's radius-limited client data |
+
+**Not supported:** MTR 4 (4.0+) and Minecraft 1.20.4 (passing `-Pminecraft_version=1.20.4` fails fast on purpose).
+Fabric is not ported: `fabric/` is upstream's MTR 4 code and is not part of this port's build.
+
+## Installation
+
+1. Install **Forge 1.20.1 (47.x)** and **MTR 3.2.x**.
+2. Optionally install Xaero's World Map and/or JourneyMap.
+3. Drop `CRTools-MTR-Map-Overlay-forge-mc1.20.1-mtr3-<version>.jar` into `mods/`.
+4. Install the same jar on the server for the full-network view (optional; the client works alone).
+
+In game, `/mtrmap` provides layer toggles, a manual `syncRoutes`, and a `status` diagnostic that prints the cache state
+(server snapshot vs. client fallback, route/track/landmark counts, sync state).
 
 ## Features
 
 | Map | Overlay |
 | --- | --- |
-| Xaero's World Map | Physical rail geometry, route-coloured ribbons, and compact station, platform and depot icons. Hover to inspect routes and landmarks. |
-| JourneyMap | Physical rails, shared-route colour bands, and station, platform and depot icons on the fullscreen map, with separate TRACKS and ROUTES controls. |
+| Xaero's World Map | Physical rail geometry, route-coloured ribbons, compact station/platform/depot icons, hover tooltips, TRACKS/ROUTES toolbar buttons |
+| JourneyMap | Same layers through the v2 API: rails, shared-route colour bands, station/platform/depot markers |
 
-These are **map-only icons**, not ordinary Xaero waypoints: they do not fill the waypoint list, compass, minimap or in-world HUD. Multiple routes on one physical rail occupy adjacent colour bands rather than overwriting one another. Both map integrations draw physical rails first, coloured routes on top, and station/platform icons last. In JourneyMap, the entire layer follows the map's live drag and zoom transform; track width matches Xaero's screen-pixel style.
+Icons are **map-only** (no waypoint spam), multiple routes sharing one rail render as adjacent colour bands, and every layer
+follows the map's live pan/zoom transform.
 
-The [v1.5.1 GitHub release](https://github.com/teamCreating/MTR-Map-Overlay/releases/tag/v1.5.1) also carries four MC 1.20 compatibility JARs built as mod version **1.5.1**. Their filenames state the exact Minecraft target, MTR range and loader; the original v1.5.1 assets remain MC 1.21.1.
+## Building
 
-When the mod is installed on the server as well as the client, it can request a **whole-network snapshot** for each dimension. Without the server component it still works, but can show only the nearby data MTR has sent to the client. Xaero and JourneyMap are optional integrations; install either or both.
+```bash
+# JDK 21 for Gradle; the artifact targets Java 17
+./gradlew build                      # compile + tests + jar
+./gradlew build -PmtrmapRuntimeTest  # also resolve MTR/Xaero/JourneyMap for local runs
+./gradlew runServer -PmtrmapRuntimeTest -PmtrmapServerOnly
+```
 
-## Requirements and installation
+Artifact: `build/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.1-mtr3-<version>.jar`.
 
-| Component | Requirement |
-| --- | --- |
-| Minecraft | 1.20.1 or 1.20.4, Java 17 or newer; choose the exact version JAR |
-| Mod loader | Forge 47.x (1.20.1) / 49.x (1.20.4), **or** Fabric Loader with the matching Fabric API |
-| MTR | 4.0.5 (latest stable 4.0.x checked on 2026-09-30), built for the same loader |
-| Map mod | Xaero's World Map 1.45.0+; JourneyMap 6.0.6+ (1.20.1) or 5.10.0 (1.20.4), for the same MC and loader |
-| Xaero's Minimap | Optional; used only to remove old `[MTR]` waypoints created by earlier releases |
+Useful diagnostics (all opt-in):
 
-1. Build or download the **Forge** or **Fabric** JAR for your exact Minecraft version (1.20.1 / 1.20.4) for this branch. Install one matching loader build in the client's `mods` directory. This branch is based on v1.5.1 and uses version **1.5.1**. The `main` branch continues to target NeoForge/Fabric MC 1.21.1.
-2. Install MTR and your chosen map mod for that same loader. Fabric additionally needs Fabric API.
-3. Optionally install the matching MTR Map Overlay JAR and MTR on the server to enable the whole-network view. Client and server must use the `mtrmap` mod ID; older `mtrsurveyor` builds are not compatible with this release.
-4. Open Xaero's World Map or JourneyMap's fullscreen map. Both maps have matching `ROUTES` and `TRACKS` icons (green left bar = on, red = off); JourneyMap puts them in its add-on button panel. The `/mtrmap config routeLines` and `trackLines` switches apply to both maps. Hover over a line or icon for details.
+```bash
+# generate a small MTR 3 network in MTR's own save layout
+./gradlew test -PmtrmapGenerateTestWorld=true --tests '*TestWorldGeneratorTest*'
 
-The server component is optional. This branch provides separate JARs for **MC 1.20.1 and 1.20.4**, each requiring its exact Minecraft version and MTR >=4.0.5, <4.1. Forge and Fabric share protocol-v5 snapshot encoding, with separate loader transports; cross-loader connections are not claimed. Local development-runtime checks are documented in [MC 1.20 runtime QA](docs/validation/mc120-runtime.md); production-JAR launch and cross-machine play are outside that check.
+# replay a real save through the map layer, without a game
+./gradlew test "-Dmtrmap.replayDir=<world>/mtr/minecraft/overworld" --tests '*SaveReplayTest*'
 
-## Commands and configuration
+# run the whole suite against another MTR 3 build (e.g. the Yomi fork)
+./gradlew test -PmtrTestCoordinate="maven.modrinth:ymtr:1.20.1-3.6.3"
+```
 
-Commands are registered on the **client**, so they are available even when the server does not run this mod.
+## Verification
 
-| Command | Purpose |
-| --- | --- |
-| `/mtrmap syncRoutes` | Request a whole-network snapshot, if the server supports it. |
-| `/mtrmap syncLandmarks` | Refresh JourneyMap landmarks. |
-| `/mtrmap testMarker` | Place a JourneyMap diagnostic marker at the player. |
-| `/mtrmap mode station\|platform\|both` | Select the client-data fallback landmark mode. |
-| `/mtrmap config enabled <true\|false>` | Enable or disable the map overlay. |
-| `/mtrmap config showStations <true\|false>` | Show or hide station icons. |
-| `/mtrmap config showPlatforms <true\|false>` | Show or hide platform icons. |
-| `/mtrmap config showDepots <true\|false>` | Show or hide depot icons. |
-| `/mtrmap config routeLines <true\|false>` | Show or hide route ribbons on both maps. |
-| `/mtrmap config trackLines <true\|false>` | Show or hide physical rails on both maps. |
+* `gradlew clean build` — **36 tests, 0 failures** (the opt-in save replay is skipped unless `-Dmtrmap.replayDir` is set).
+* Dedicated server smoke test with MTR 3.2.2 + Architectury: the mod and MTR load, the server reaches `Done (…)`.
+* Mixin application proven at runtime (`-Dmixin.debug.export=true`): the transformed `mtr.data.RailwayData` / `mtr.data.Siding`
+  implement this mod's accessor interfaces.
+* End-to-end: a generated MTR 3 save loaded by a real server produces `routes=3, tracks=6, landmarks=7` and a 1986-byte
+  chunked snapshot that the client reassembles.
+* Real-world replay of a 2006-rail / 19-route city save: **78 coloured route stretches** (`fromRealPaths=78`, `unroutable=0`,
+  261 landmarks, 2562 siding-path entries aligned to the drawn track layer).
+* Live game on the same world (Forge 1.20.1 + MTR 3.6.3 fork + Xaero's World Map 1.44.2): `41 routes (40 from MTR driving
+  paths, 1 snapped, 0 unroutable)`, 2006 rails, 261 landmarks, 411 KB snapshot — and the coloured routes render on the map.
 
-Forge stores settings in `config/mtrmap.toml` and copies an existing `mtrsurveyor.toml` on first launch when the new file is absent. Fabric uses `config/mtrmap.properties` with its own defaults. The two formats are not automatically interchangeable. Important options include `networkSync.enabled` (default `true`), `networkSync.refreshIntervalSeconds` (default `300`), and the station/platform/depot visibility switches.
+## Known limitations
 
-## Build from source
+* **MTR 3 only.** MTR 4 and MC 1.20.4 are rejected by design (`mods.toml` range `[1.20.1-3.2.2-hotfix-2, 1.20.1-4.0.0)`).
+* Rail-driven route colouring needs MTR to have generated a driving path (a depot whose sidings were path-generated);
+  otherwise the route is snapped onto the rail graph with a strict path finder. Routes whose paths cannot be completed are
+  drawn as stops without a ribbon rather than as a misleading straight line.
+* Depot map icons use the depot's centre height: MTR 3 areas store only X/Z corners and have no `getMaxY()`.
+* The generated test world is data-only; MTR prunes rails whose rail-node blocks are absent once it validates a loaded chunk,
+  so use it for map-layer checks — or place a few rail blocks in game for a purely visual run.
+* Xaero's World Map is closed source, so the overlay hooks into `xaero.map.gui.GuiMap` through mixins; a future Xaero release
+  that renames those members would disable the layer (the mixins are `require = 0` and fail soft).
+* Fabric and upstream's 1.20.4 target are **not** ported.
 
-Run Gradle with JDK 21. Both builds compile mod classes for Java 17 (both Minecraft targets). The loader builds have separate Gradle wrappers because they use different build plugins:
-
-| Loader | Windows | macOS / Linux | Output |
-| --- | --- | --- | --- |
-| Forge 1.20.1 | `.\gradlew.bat build` | `./gradlew build` | `build/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.1-1.5.1.jar` |
-| Fabric 1.20.1 | `.\fabric\gradlew.bat -p fabric build` | `./fabric/gradlew -p fabric build` | `fabric/build/libs/CRTools-MTR-Map-Overlay-fabric-mc1.20.1-1.5.1.jar` |
-| Forge 1.20.4 | `.\gradlew.bat build "-Pminecraft_version=1.20.4"` | `./gradlew build -Pminecraft_version=1.20.4` | `build/mc1.20.4/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.4-1.5.1.jar` |
-| Fabric 1.20.4 | `.\fabric\gradlew.bat -p fabric build "-Pminecraft_version=1.20.4"` | `./fabric/gradlew -p fabric build -Pminecraft_version=1.20.4` | `fabric/build/mc1.20.4/libs/CRTools-MTR-Map-Overlay-fabric-mc1.20.4-1.5.1.jar` |
-
-All four targets run the shared JUnit tests. Check the packaged JARs with `python tools/verify_artifacts.py` and `python tools/verify_artifacts.py --minecraft 1.20.4`. The test-world generator is opt-in and is skipped during ordinary builds. Forge uses Gradle 8.8 / ForgeGradle 6.0.54; Fabric uses Gradle 9.5.0 / Loom 1.17.21. The bundled JourneyMap API is extracted and remapped for compilation only; it is not shipped inside this mod. A successful build does not replace an in-game compatibility check, especially when Xaero's internal map renderer changes.
-
-## Isolated runtime checks
-
-Use `-PmtrmapRuntimeTest=true` with `runClient` / `runServer` to load matching MTR and map dependencies for local QA. Add `-PmtrmapRunDir=<absolute test directory>` to isolate saves and settings. Servers also use `-PmtrmapServerOnly=true`; clients can use `-PquickplayServer=127.0.0.1:<port>` (Forge 1.20.1 should join from the normal server list first). Select Minecraft and use the loader's own wrapper as in the build table above. See [runtime evidence and limitations](docs/validation/mc120-runtime.md).
-
-## Source guide
-
-The Forge sources are under [`src/main/java/com/lx862/mtrmap`](src/main/java/com/lx862/mtrmap); [`fabric/`](fabric) contains Fabric-specific entry points and adapters and compiles the shared Java sources. Forge keeps common initialization in `MTRMap` and physical-client events in `MTRMapClient`; `MTRNetworkClient` holds client-only transport callbacks. The two builds share textures, the 128×128 mod/pack logo, and the same `mtrmap` identity.
-
-| Area | Main responsibility |
-| --- | --- |
-| [`mapdata/`](src/main/java/com/lx862/mtrmap/mapdata) | `MapDataCache` selects server snapshots or nearby MTR client data. `TrackSampler` samples each physical rail, reused by route paths; `TrackRoutePalette` assigns stable colour bands and `MapTrack` caches bounds for viewport culling. |
-| [`network/`](src/main/java/com/lx862/mtrmap/network) | Protocol-v5 payloads and `NetworkSnapshotCodec` transfer routes, tracks and landmarks. `ServerNetworkCollector` reads MTR simulators on their own threads; `ClientNetworkSync` probes and requests snapshots, while `NetworkChunkAssembler` validates and reassembles chunks. |
-| [`integration/xaero/`](src/main/java/com/lx862/mtrmap/integration/xaero) | `XaeroRouteRenderer` draws tracks, route ribbons and map-only icons in world-map coordinates and handles hover tooltips. |
-| [`integration/journeymap/`](src/main/java/com/lx862/mtrmap/integration/journeymap) | Optional JourneyMap v2 plugin for 1.20.1; JourneyMap 5 adapters for 1.20.4. `JourneyMapToolbar` supplies TRACKS/ROUTES buttons; `JourneyMapScreenProjection` follows pan/drag/zoom; `JourneyMapPathManager` draws viewport-culled pixel-width track and route quads; `JourneyMapForegroundRenderer` keeps landmark icons above both layers. Fullscreen `MarkerOverlay` objects retain hover information. |
-| [`mixin/`](src/main/java/com/lx862/mtrmap/mixin) | Access to MTR data and the Xaero render hook; Fabric supplies its own Xaero hook variant. |
-| [`config/`](src/main/java/com/lx862/mtrmap/config) and [`fabric/src/main/java/`](fabric/src/main/java) | Loader-specific configuration, initialization, client commands and network registration. |
-
-Data flow: MTR simulator/client data → dimension-specific `MapDataCache` → Xaero or JourneyMap fullscreen renderer. With a modded server, the client first probes dimension hashes, requests changed snapshots, validates and reassembles chunked payloads, then updates the cache. Without one, the cache falls back to MTR's radius-limited client data.
-
-### Version-specific adapters
-
-`compat/mc1204/` supplies Forge 49 networking, JourneyMap 5 plugin/events/toolbar, and an optional mixin after JourneyMap's `drawMap` method. The 1.20.4 foreground projection uses JourneyMap 5's grid renderer and active mouse drag; it runs before map controls are drawn. `gradle/minecraft-target.gradle` generates the two JourneyMap 5 data/presence adapters from shared source, translating only API namespaces, explicit marker IDs and UI enum sets. The common marker filters, MTR data and snapshot protocol remain shared. Fabric API is 0.92.6+1.20.1 or 0.97.3+1.20.4. Each version has a separate build directory.
-
-## Troubleshooting
-
-- **Only nearby stations appear:** the server has not supplied a whole-network snapshot. Install the matching mod on the server, or use the client-only fallback as intended.
-- **No Xaero lines:** check that Xaero's **World Map** is installed and that the log contains `Path layer render hook into Xaero's World Map is active`. Xaero internal changes can break the render hook.
-- **No minimap waypoints:** expected. Landmarks are intentionally fullscreen-map overlays.
-- **Migrating from an older build:** replace the old `mtrsurveyor` JAR rather than installing it beside this one; the mod ID and command are now `mtrmap` and `/mtrmap`.
+See [MTR3-PORT-REPORT.md](MTR3-PORT-REPORT.md) for the full mapping table, the change list and the raw evidence.
 
 ## License and attribution
 
-The project is MIT-licensed. The original copyright and license notice for AmberFrost's contributions remains in [`LICENSE`](LICENSE); later work is maintained by BenLi06. The existing Git commit history and attribution are preserved.
+MIT-licensed, like upstream. **The original copyright and license notice (© 2025 AmberFrost) is retained unchanged in
+[`LICENSE`](LICENSE)**; later upstream work is maintained by **BenLi06** / [teamCreating](https://github.com/teamCreating).
+This port builds on their code — all credit for the original mod, its map integrations and its protocol design belongs to them.
+
+**The MTR 4 → MTR 3 port itself was done by [DeepSeek](https://www.deepseek.com/) (DeepSeek Harness agent).** Changes are listed
+in [MTR3-PORT-REPORT.md](MTR3-PORT-REPORT.md) and in the commit history of this branch. If you redistribute this port (or a
+modified version), keep [`LICENSE`](LICENSE) and this attribution section, and make clear that it is a port rather than the
+original release.
+
+**Issues caused by this branch must not be filed with the original project** (see the notice at the top of this README):
+use this repository's own issue tracker. Upstream authors: **AmberFrost** (original copyright) and
+**BenLi06** / [teamCreating](https://github.com/teamCreating).

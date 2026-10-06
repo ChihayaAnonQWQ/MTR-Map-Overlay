@@ -6,7 +6,7 @@ ext.journeyMapLoader = 'forge'
 apply from: 'gradle/minecraft-target.gradle'
 version = project.mod_version
 group = project.maven_group
-base.archivesName = project.archives_base_name + '-forge-mc' + project.minecraft_version
+base.archivesName = project.archives_base_name + '-forge-mc' + project.minecraft_version + '-mtr3'
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 minecraft {
     mappings channel: 'official', version: project.minecraft_version
@@ -35,12 +35,24 @@ repositories {
 }
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${targetForgeVersion}"
-    compileOnly "maven.modrinth:minecraft-transit-railway:FORGE-${mtr_version}+${minecraft_version}"
+    // MTR 3 for Forge 1.20.1: classes live in mtr.* (MTR 4 uses org.mtr.core.* / org.mtr.mod.*).
+    compileOnly "maven.modrinth:minecraft-transit-railway:${mtr_modrinth_version}"
     compileOnly fg.deobf("maven.modrinth:xaeros-minimap:forge-${minecraft_version}-26.4.2")
-    compileOnly fg.deobf("maven.modrinth:xaeros-world-map:forge-${minecraft_version}-1.45.0")
+    // Compile against the OLDEST supported Xaero's World Map (the upstream MTR 4
+    // branch pinned 1.45.0, which then hard-blocked everyone on 1.44.x; the
+    // GuiMap/MapProcessor/MapWorld/MapDimension members used here are identical
+    // in 1.40.11, 1.44.2 and 1.45.0).
+    compileOnly fg.deobf("maven.modrinth:xaeros-world-map:forge-${minecraft_version}-1.40.11")
     compileOnly fg.deobf("maven.modrinth:journeymap:${journeyMapModVersion}")
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
-    testImplementation "maven.modrinth:minecraft-transit-railway:FORGE-${mtr_version}+${minecraft_version}"
+    // MTR 3 is Minecraft-coupled (BlockPos / Vec3 / NBT in its signatures) and
+    // calls Minecraft through SRG names, so the tests need the remapped jar.
+    // MTR 4's platform independent org.mtr.core needed no deobfuscation here.
+    // Override with -PmtrTestCoordinate=maven.modrinth:<project>:<version> to run
+    // the whole suite against a different MTR 3 build (e.g. the Yomi 3.6.x fork,
+    // which was verified to have an identical API surface for everything used).
+    testImplementation fg.deobf(project.findProperty('mtrTestCoordinate')
+            ?: "maven.modrinth:minecraft-transit-railway:${mtr_modrinth_version}")
     testImplementation platform('org.junit:junit-bom:5.10.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
 }
@@ -48,6 +60,14 @@ test {
     useJUnitPlatform()
     systemProperty 'mtrmap.generateTestWorld', project.findProperty('mtrmapGenerateTestWorld') ?: 'false'
     systemProperty 'mtrmap.testWorldMtrPath', project.findProperty('mtrmapTestWorldMtrPath') ?: 'run/saves/TestWorld/mtr'
+    // Forward every -Dmtrmap.* of the Gradle invocation to the test JVM, so the
+    // opt-in diagnostics (SaveReplayTest, TestWorldGeneratorTest) can be driven
+    // from the command line.
+    System.properties.each { key, value ->
+        if (key.toString().startsWith('mtrmap.')) {
+            systemProperty key.toString(), value
+        }
+    }
 }
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 processResources {
@@ -68,7 +88,10 @@ apply from: 'gradle/journeymap-api.gradle'
 // Opt-in runtime dependencies for isolated local smoke tests.
 if (project.hasProperty('mtrmapRuntimeTest')) {
     dependencies {
-        runtimeOnly fg.deobf("maven.modrinth:minecraft-transit-railway:FORGE-${mtr_version}+${minecraft_version}")
+        runtimeOnly fg.deobf("maven.modrinth:minecraft-transit-railway:${mtr_modrinth_version}")
+        // MTR 3 declares Architectury as a mandatory dependency in its own
+        // mods.toml, so a Forge runtime needs it on the classpath.
+        runtimeOnly fg.deobf("maven.modrinth:architectury-api:9.2.14+forge")
         if (!project.hasProperty('mtrmapServerOnly')) {
             runtimeOnly fg.deobf("maven.modrinth:xaeros-world-map:forge-${minecraft_version}-1.45.0")
             runtimeOnly fg.deobf("maven.modrinth:xaeros-minimap:forge-${minecraft_version}-26.4.2")

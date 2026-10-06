@@ -1,27 +1,31 @@
 # AGENTS.md — 多 Agent 协作协议（必读，优先级最高）
 
 > **任何 AI agent（Claude Code / Codex / ZCode / 人类协作者）在本仓库开始工作前，必须完整阅读本文件。**
-> 本文件的存在原因：2026-09-16 发生过一起事故——某个 agent 按过时认知把仓库暂存区整体回退到已废弃的
+> 本文件的存在原因：2026-09-16 上游发生过一起事故——某个 agent 按过时认知把仓库暂存区整体回退到已废弃的
 > Forge 1.20.1 架构（丢弃了整个 NeoForge 移植），险些毁掉两周的工作。以下规则是为了让这种情况不再发生。
 
-## 当前兼容分支例外（2026-09-30，Codex）
+## 本分支的平台约定（2026-10-06，MTR 3 移植）
 
-本 worktree 为用户明确要求的 `compat/mtr-4.0-mc-1.20` 分支：**Forge/Fabric MC 1.20.1 / 1.20.4 + MTR 4.0.5，mod/pack/metadata 均保持 v1.5.1**。从 main v1.5.1 移植，禁止将这里的 Forge 代码覆盖回 main。下文的 NeoForge 1.21.1 平台约束适用于 main；本分支遵循上面的兼容目标。构建 Gradle 用 JDK 21，产物为 Java 17；`gradlew build` 与 `fabric/gradlew -p fabric build` 均运行共用测试；加 `-Pminecraft_version=1.20.4` 构建独立 1.20.4 目标。权威状态见 STATE.md，构建/功能说明以本分支 README 为准。
+本仓库是 [MTR Map Overlay](https://github.com/teamCreating/MTR-Map-Overlay) 的**非官方 MTR 3 移植分支**，
+**移植工作由 [DeepSeek](https://www.deepseek.com/)（DeepSeek Harness agent）于 2026-10-06 完成**：
+
+- **平台：Forge 1.20.1（47.x）+ MTR 3.2.x**，mod ID 仍为 `mtrmap`，版本沿用上游兼容分支的 `1.5.1`。
+- 上游的平台（NeoForge 1.21.1 + MTR 4.1.x、以及兼容分支的 MTR 4.0.5 / MC 1.20.4）**不属于本分支**。
+  本分支已把 MC 1.20.4 目标改为主动报错，且 **Fabric 未移植**（`fabric/` 目录仍是上游 MTR 4 代码，不参与本树构建）。
+- **禁止把 MTR 4 的代码回退进本分支**：MTR 4 使用 `org.mtr.core.*` 数据模型，与本分支的 `mtr.data.*` 实现不兼容；
+  若看到"像 MTR 4"的代码，先读 `MTR3-PORT-REPORT.md` 与 `docs/agents/STATE.md`，而不是"修复"它。
+- 构建：Gradle 用 **JDK 21**，产物 Java 17，验证依赖 MTR `1.20.1-3.2.2-hotfix-2` 与 Architectury（仅运行时冒烟需要）。
+- 权威状态见 `docs/agents/STATE.md`；改动与验证证据见 `MTR3-PORT-REPORT.md`；面向用户的说明以 `README.md` / `README.zh-CN.md` 为准。
 
 ## 0. 三条铁律（违反 = 事故重演）
 
-1. **平台已定，禁止回退**：本项目须持续支持 **NeoForge 1.21.1 + MTR 4.1.0-beta.2**；另有并行的 Fabric 1.21.1 构建，不能以移植为由移除 NeoForge。
-   main 分支上不存在 Forge 1.20.1 代码（旧代码只存在于 git 历史 `77121f5` 之前）。
-   如果你发现工作区/代码"看起来像 Forge 1.20.1"或与你记忆中的项目不符——**是你的认知过时了**，
-   请先读 `docs/agents/STATE.md` 和 `walkthrough.md`，而不是"修复"它。
-2. **版本号默认叠加小版本（patch）**：每次功能/修复发布把 `mod_version` 的第三位 +1
-   （如 1.4.0 → 1.4.1）。第二位（如 1.4.x 的 4）只在用户明确指示时才 +1。
-   版本号会自动展开进 `META-INF/neoforge.mods.toml` 和 `pack.mcmeta` 的 description
-   （`pack.mcmeta` 用 `${version}` 占位符，不要手写死版本号）。
+1. **平台已定，禁止回退**：本分支持续支持 **Forge 1.20.1 + MTR 3.2.x**；不得以"对齐上游"为由引入 MTR 4 或 NeoForge 代码。
+2. **版本号默认叠加小版本（patch）**：每次功能/修复发布把 `mod_version` 的第三位 +1（如 1.5.1 → 1.5.2）。
+   第二位只在用户明确指示时才 +1。版本号会自动展开进 `META-INF/mods.toml` 与 `pack.mcmeta`（用 `${version}` 占位符，不要写死）。
 3. **禁止破坏性 git 操作**：不得执行 `git reset --hard`、`git checkout <ref> -- .`、`git push --force`、
    `git clean -fd`、`git branch -D`。工作区与 HEAD 不一致时，用 `git stash`（加说明）或先 diff 确认再逐文件处理。
-4. **先领任务，再动代码**：任何非 trivial 修改，必须先在 `docs/agents/TASKS.md` 认领（claim），
-   完成后释放。两个 agent 不要同时改同一批文件。
+4. **先领任务，再动代码**：任何非 trivial 修改，必须先在 `docs/agents/TASKS.md` 认领（claim），完成后释放。
+   两个 agent 不要同时改同一批文件。
 
 ## 1. 工作流程（每个 agent 每次会话执行）
 
@@ -44,15 +48,24 @@
 - 每条状态/消息必须带：操作者标识 + 日期时间（`YYYY-MM-DD HH:MM`）。
 - 冲突处理：push 被拒（远端有新提交）时 `git pull --rebase` 解决后再推；不得强推。
 
-## 3. 项目速览（详情见 walkthrough.md，速览可能滞后，以 STATE.md 为准）
+## 3. 项目速览
 
-- **是什么**：独立的 MTR 地图叠加 mod，直接读取 MTR 网络数据并绘制到 Xaero's World Map / JourneyMap；不集成 MTR Surveyor 的地图。
-- **当前标识**：mod ID `mtrmap`，Java 包 `com.lx862.mtrmap`，客户端命令 `/mtrmap`。
-- **平台**：NeoForge 21.1.249 或 Fabric（MC 1.21.1）/ MTR 4.1.0-beta.2 / Xaero World Map 1.45.0 / Minimap 26.4.2。
-- **构建**：JDK 21，NeoForge `./gradlew build`，Fabric `./fabric/gradlew -p fabric build`（详见 walkthrough.md §6）。
-- **测试**：`./gradlew runClient -Pquickplay=TestWorld`，日志检查清单见 walkthrough.md §7。
+- **是什么**：独立的 MTR 地图叠加模组，直接读取 MTR 网络数据并绘制到 Xaero's World Map / JourneyMap；不集成 MTR Surveyor 的地图。
+- **当前标识**：mod ID `mtrmap`，Java 包 `com.lx862.mtrmap`，客户端命令 `/mtrmap`（含 `status` 自检）。
+- **平台**：Forge 1.20.1 / MTR 3.2.2（另已验证第三方 fork Yomi 3.6.3）/ Xaero World Map 1.40+ / Minimap 26.x。
+- **构建**：JDK 21，`./gradlew build`；诊断开关见 README（`-PmtrmapGenerateTestWorld`、`-Dmtrmap.replayDir`、`-PmtrTestCoordinate`）。
+- **实机验证**：`./gradlew runClient -PmtrmapRuntimeTest`（无图形环境时只能跑服务端冒烟）。
 
-## 4. 事故记录（为什么有这份协议）
+## 4. 署名与许可（不可删除）
+
+- 本仓库同样以 **MIT** 发布，`LICENSE`（© 2025 **AmberFrost**）**原样保留**，不得改动其版权行。
+- 上游后续工作由 **BenLi06** / teamCreating 维护；本移植版的改动需在 `MTR3-PORT-REPORT.md` 与提交历史中说明。
+- 再分发（含修改版）必须保留 `LICENSE` 与 README 的署名段落，并说明这是移植版而非原版发布。
+- **本分支产生的问题一律不得反馈给原项目制作组**（AmberFrost / BenLi06 / teamCreating）：不要向上游提交
+  与本移植版相关的 issue、PR、崩溃日志或在他们的讨论区提问；这类问题只记录在本仓库的 issue 区。
+  README（中英文）与 `mods.toml` 的 `credits` 必须始终保留原模组作者信息。
+
+## 5. 事故记录（上游，为什么有这份协议）
 
 - **2026-09-16 回退事故**：某 agent 将工作区+暂存区整体回退为已废弃的 Forge 1.20.1 代码
   （删除 network/ 包、neoforge.mods.toml、路径层渲染器，共 -1574 行），随后自行 `git reset` 丢弃。

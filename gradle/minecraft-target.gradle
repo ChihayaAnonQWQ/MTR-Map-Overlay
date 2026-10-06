@@ -1,18 +1,24 @@
-// Both builds select the same target with -Pminecraft_version=1.20.4.
+// This tree targets Forge 1.20.1 with MTR 3 only.
+//
+// The upstream compat branch also built an MC 1.20.4 target against MTR 4.0.5.
+// MTR 3 has no 1.20.4 release and MTR 4 uses a completely different data model
+// (org.mtr.core instead of mtr.data), so the 1.20.4 target is intentionally not
+// offered here; passing -Pminecraft_version=1.20.4 fails fast.
 ext.targetMinecraftVersion = project.findProperty('minecraft_version') ?: '1.20.1'
-if (!(targetMinecraftVersion in ['1.20.1', '1.20.4'])) {
-    throw new GradleException("Supported Minecraft targets: 1.20.1, 1.20.4; got ${targetMinecraftVersion}")
+if (targetMinecraftVersion != '1.20.1') {
+    throw new GradleException("This MTR 3 port supports Minecraft 1.20.1 only; got ${targetMinecraftVersion}")
 }
-ext.legacyJourneyMap = targetMinecraftVersion == '1.20.4'
-ext.targetForgeVersion = gradle.startParameter.projectProperties['forge_version'] ?: (legacyJourneyMap ? '49.2.0' : '47.4.0')
-ext.targetForgeMajor = legacyJourneyMap ? '49' : '47'
-ext.targetPackFormat = legacyJourneyMap ? 22 : 15
-ext.journeyMapModVersion = legacyJourneyMap ? "1.20.4-5.10.0-${journeyMapLoader}" : "1.20.1-6.0.6+${journeyMapLoader}"
-ext.journeyMapMinimum = legacyJourneyMap ? '5.10.0' : '1.20.1-6.0.6'
-if (legacyJourneyMap) layout.buildDirectory = layout.projectDirectory.dir('build/mc1.20.4')
+ext.legacyJourneyMap = false
+ext.targetForgeVersion = gradle.startParameter.projectProperties['forge_version'] ?: '47.4.0'
+ext.targetForgeMajor = '47'
+ext.targetPackFormat = 15
+ext.journeyMapModVersion = "1.20.1-6.0.6+${journeyMapLoader}"
+ext.journeyMapMinimum = '1.20.1-6.0.6'
 
 // Only the API surface differs for these data builders. Generate the v1
 // variants from the shared implementation so marker/filter fixes stay shared.
+// The generated variants are only used by the dropped 1.20.4 target; the task
+// is kept so the build script still matches the upstream one.
 def sharedRoot = journeyMapLoader == 'forge' ? projectDir : file('..')
 def generated = layout.buildDirectory.dir('generated/sources/journeymap5')
 def packagePath = 'com/lx862/mtrmap/integration/journeymap'

@@ -5,23 +5,23 @@ import com.lx862.mtrmap.MTRMap;
 import com.lx862.mtrmap.config.MTRMapConfig;
 import com.lx862.mtrmap.mapdata.MapDataCache;
 import com.lx862.mtrmap.mapdata.MapLandmark;
+import com.lx862.mtrmap.mtr.MtrCompat;
 import journeymap.api.v2.common.Context;
 import journeymap.api.v2.client.IClientAPI;
 import journeymap.api.v2.client.display.MarkerOverlay;
 import journeymap.api.v2.client.model.MapImage;
+import mtr.client.ClientData;
+import mtr.data.DataCache;
+import mtr.data.Depot;
+import mtr.data.IGui;
+import mtr.data.NameColorDataBase;
+import mtr.data.Platform;
+import mtr.data.Route;
+import mtr.data.Station;
+import mtr.data.TransportMode;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
-import org.mtr.mod.client.MinecraftClientData;
-import org.mtr.core.data.Depot;
-import org.mtr.core.data.NameColorDataBase;
-import org.mtr.core.data.Platform;
-import org.mtr.core.data.Position;
-import org.mtr.core.data.Route;
-import org.mtr.core.data.RoutePlatformData;
-import org.mtr.core.data.Station;
-import org.mtr.core.data.TransportMode;
-import org.mtr.mod.data.IGui;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -60,7 +60,7 @@ final class JourneyMapLandmarkManager {
     private JourneyMapLandmarkManager() {
     }
 
-    static void syncLandmarks(String reason, Level world, MinecraftClientData clientData) {
+    static void syncLandmarks(String reason, Level world, DataCache dataCache) {
         final IClientAPI api = getJourneyMapAPI();
         if (api == null) {
             // JourneyMap not loaded or its plugin not initialized yet
@@ -73,17 +73,19 @@ final class JourneyMapLandmarkManager {
         // Build the full set of markers that should be displayed right now
         final Map<String, MarkerOverlay> desiredMarkers = new LinkedHashMap<>();
         if (config.enabled.get()) {
-            final MTRDataSummary dataSummary = MTRDataSummary.of(clientData);
+            // MTR 3: MTRDataSummary takes the DataCache (ClientData.DATA_CACHE)
+            // directly instead of a MinecraftClientData instance
+            final MTRDataSummary dataSummary = MTRDataSummary.of(dataCache);
             final String dimensionKey = world.dimension().location().getNamespace() + "/"
                     + world.dimension().location().getPath();
             if (MapDataCache.hasServerData(dimensionKey)) {
                 collectNetworkMarkers(desiredMarkers, MapDataCache.get(dimensionKey).landmarks, world);
             } else {
                 if ("platform".equalsIgnoreCase(config.waypointMode.get())) {
-                    collectPlatformMarkers(desiredMarkers, world);
+                    collectPlatformMarkers(desiredMarkers, dataCache, world);
                 } else if ("both".equalsIgnoreCase(config.waypointMode.get())) {
                     collectStationMarkers(desiredMarkers, dataSummary, world);
-                    collectPlatformMarkers(desiredMarkers, world);
+                    collectPlatformMarkers(desiredMarkers, dataCache, world);
                 } else {
                     collectStationMarkers(desiredMarkers, dataSummary, world);
                 }
@@ -214,6 +216,9 @@ final class JourneyMapLandmarkManager {
         }
 
         for (Station station : collectStations()) {
+            if (station == null) {
+                continue;
+            }
             if (shouldBeFilteredOut(station, dataSummary)) {
                 continue;
             }
@@ -223,7 +228,7 @@ final class JourneyMapLandmarkManager {
 
     // Platform mode: one marker per platform, labelled with the platform
     // number and showing the station name plus route/destination info on hover
-    private static void collectPlatformMarkers(Map<String, MarkerOverlay> out, Level world) {
+    private static void collectPlatformMarkers(Map<String, MarkerOverlay> out, DataCache dataCache, Level world) {
         if (!MTRMapConfig.INSTANCE.showPlatformLandmarks.get()) {
             return;
         }
@@ -232,61 +237,79 @@ final class JourneyMapLandmarkManager {
         // platform.routes is not populated on the client side
         Map<Long, List<Route>> platformRouteMap = new HashMap<>();
         for (Route route : collectRoutes()) {
-            List<RoutePlatformData> rpList = route.getRoutePlatforms();
+            // MTR 3: the ordered stops are route.platformIds (each entry is a
+            // Route.RoutePlatform with public platformId/customDestination fields)
+            List<Route.RoutePlatform> rpList = route == null ? null : route.platformIds;
             if (rpList == null) {
                 continue;
             }
-            for (RoutePlatformData rpd : rpList) {
-                if (rpd.getPlatform() != null) {
-                    platformRouteMap.computeIfAbsent(rpd.getPlatform().getId(), k -> new ArrayList<>()).add(route);
+            for (Route.RoutePlatform rpd : rpList) {
+                if (rpd != null) {
+                    platformRouteMap.computeIfAbsent(rpd.platformId, k -> new ArrayList<>()).add(route);
                 }
             }
         }
 
+        // MTR 3: station -> platform membership lives in DataCache
+        // (platformIdToStation); MTR 4 read it from Station.savedRails
+        final Map<Long, List<Platform>> platformsByStation = MtrCompat.platformsByStation(dataCache);
+
         for (Station station : collectStations()) {
-            String stationName = IGui.formatStationName(station.getName());
+            if (station == null) {
+                continue;
+            }
+            String stationName = IGui.formatStationName(station.name);
             if (stationName == null || stationName.isEmpty()) {
                 continue;
             }
 
-            for (Object railObj : new ArrayList<>(station.savedRails)) {
-                if (!(railObj instanceof Platform platform)) {
+            for (Platform platform : platformsByStation.getOrDefault(station.id, List.of())) {
+                if (platform == null) {
+                    continue;
+                }
+
+                final BlockPos midPos = platform.getMidPos();
+                if (midPos == null) {
                     continue;
                 }
 
                 String markerId = getMarkerId(platform);
-                Position midPos = platform.getMidPosition();
-                BlockPos pos = new BlockPos((int) midPos.getX(), (int) midPos.getY(), (int) midPos.getZ());
 
                 // Label = platform name/number
-                String platformName = platform.getName();
+                String platformName = platform.name;
                 if (platformName == null || platformName.isEmpty()) {
-                    platformName = String.valueOf(platform.getId());
+                    platformName = String.valueOf(platform.id);
                 }
 
                 // Hover text = station name + route names with destinations
                 StringBuilder title = new StringBuilder(stationName);
-                List<String> routeInfos = buildRouteInfos(platform, platformRouteMap.get(platform.getId()));
+                List<String> routeInfos = buildRouteInfos(dataCache, platform, platformRouteMap.get(platform.id));
                 if (!routeInfos.isEmpty()) {
                     title.append("\n").append(String.join("\n", routeInfos));
                 }
 
-                out.put(markerId, createMarker(markerId, pos, platformName, title.toString(),
-                        station.getTransportMode(), false, station.getColor(), world));
+                out.put(markerId, createMarker(markerId, midPos, platformName, title.toString(),
+                        station.transportMode, false, station.color, world));
             }
         }
     }
 
     private static void collectDepotMarkers(Map<String, MarkerOverlay> out, Level world) {
         for (Depot depot : collectDepots()) {
-            String depotName = IGui.formatStationName(depot.getName());
+            if (depot == null) {
+                continue;
+            }
+            String depotName = IGui.formatStationName(depot.name);
             String markerId = getMarkerId(depot);
+            // MTR 3: Depot has no getMaxY(); the marker is placed at the depot
+            // centre via the shared MtrCompat.areaY helper
+            final BlockPos center = depot.getCenter();
             BlockPos pos = new BlockPos(
-                    (int) depot.getCenter().getX(),
-                    (int) depot.getMaxY(), // Use top of depot area
-                    (int) depot.getCenter().getZ());
-            out.put(markerId, createMarker(markerId, pos, depotName, depotName, depot.getTransportMode(), true,
-                    depot.getColor(), world));
+                    center == null ? 0 : center.getX(),
+                    MtrCompat.areaY(center),
+                    center == null ? 0 : center.getZ());
+            out.put(markerId, createMarker(markerId, pos, depotName, depotName, depot.transportMode, true,
+                    depot.color, world));
         }
     }
 
@@ -295,7 +318,7 @@ final class JourneyMapLandmarkManager {
      * deduplicated by name; the destination is the last station on the route
      * (or its custom destination, if set).
      */
-    private static List<String> buildRouteInfos(Platform platform, List<Route> routes) {
+    private static List<String> buildRouteInfos(DataCache dataCache, Platform platform, List<Route> routes) {
         List<String> routeInfos = new ArrayList<>();
         if (routes == null) {
             return routeInfos;
@@ -303,7 +326,10 @@ final class JourneyMapLandmarkManager {
 
         Set<String> seenRoutes = new HashSet<>();
         for (Route route : routes) {
-            String routeName = route.getName();
+            if (route == null) {
+                continue;
+            }
+            String routeName = route.name;
             if (routeName == null || routeName.isEmpty()) {
                 continue;
             }
@@ -311,8 +337,12 @@ final class JourneyMapLandmarkManager {
                 continue;
             }
 
-            StringBuilder routeInfo = new StringBuilder(IGui.formatStationName(routeName.split("\\|\\|")[0]));
-            String destination = findDestinationForPlatform(route, platform);
+            String formattedRouteName = IGui.formatStationName(routeName.split("\\|\\|")[0]);
+            if (formattedRouteName == null) {
+                continue;
+            }
+            StringBuilder routeInfo = new StringBuilder(formattedRouteName);
+            String destination = findDestinationForPlatform(dataCache, route, platform);
             if (destination != null && !destination.isEmpty()) {
                 routeInfo.append(" → ").append(destination);
             }
@@ -321,22 +351,32 @@ final class JourneyMapLandmarkManager {
         return routeInfos;
     }
 
-    private static String findDestinationForPlatform(Route route, Platform currentPlatform) {
+    private static String findDestinationForPlatform(DataCache dataCache, Route route, Platform currentPlatform) {
         try {
-            List<RoutePlatformData> routePlatforms = route.getRoutePlatforms();
+            // MTR 3: a route stores its ordered stops as route.platformIds, each
+            // entry only carrying the platform id
+            List<Route.RoutePlatform> routePlatforms = route == null ? null : route.platformIds;
             if (routePlatforms == null || routePlatforms.isEmpty()) {
                 return null;
             }
 
-            RoutePlatformData lastPlatformData = routePlatforms.get(routePlatforms.size() - 1);
-            String customDest = lastPlatformData.getCustomDestination();
+            Route.RoutePlatform lastPlatformData = routePlatforms.get(routePlatforms.size() - 1);
+            if (lastPlatformData == null) {
+                return null;
+            }
+            String customDest = lastPlatformData.customDestination;
             if (customDest != null && !customDest.isEmpty() && !Route.destinationIsReset(customDest)) {
                 return customDest;
             }
 
-            Platform lastPlatform = lastPlatformData.getPlatform();
+            // MTR 3: the platform object is resolved through the data cache
+            // (MTR 4 had RoutePlatformData.getPlatform())
+            Platform lastPlatform = dataCache == null || dataCache.platformIdMap == null ? null
+                    : dataCache.platformIdMap.get(lastPlatformData.platformId);
             if (lastPlatform != null) {
-                return IGui.formatStationName(lastPlatform.getStationName());
+                // MTR 3: the station name is looked up by platform id, and may be null
+                String stationName = MtrCompat.stationNameOfPlatform(dataCache, lastPlatform.id);
+                return stationName == null ? null : IGui.formatStationName(stationName);
             }
         } catch (Exception e) {
             MTRMap.LOGGER.debug("[MTRMap] Error finding destination: {}", e.getMessage());
@@ -346,14 +386,16 @@ final class JourneyMapLandmarkManager {
 
     private static MarkerOverlay createStationMarker(Station station, MTRDataSummary mtrDataSummary, Level world) {
         String markerId = getMarkerId(station);
-        String stationName = IGui.formatStationName(station.getName());
+        String stationName = IGui.formatStationName(station.name);
+        final BlockPos center = station.getCenter();
         BlockPos pos = new BlockPos(
-                (int) station.getCenter().getX(),
-                (int) station.getCenter().getY(),
-                (int) station.getCenter().getZ());
+                center == null ? 0 : center.getX(),
+                center == null ? 0 : center.getY(),
+                center == null ? 0 : center.getZ());
 
         StringBuilder desc = new StringBuilder();
-        desc.append("Fare zone: ").append(station.getZone1());
+        // MTR 3: Station exposes a single "zone" int (MTR 4 had getZone1())
+        desc.append("Fare zone: ").append(station.zone);
         List<MTRDataSummary.BasicRouteInfo> routesInStation = mtrDataSummary.getRoutesInStation(station);
         if (routesInStation != null && !routesInStation.isEmpty()) {
             desc.append("\nRoutes: ");
@@ -365,8 +407,8 @@ final class JourneyMapLandmarkManager {
             }
         }
 
-        return createMarker(markerId, pos, stationName, desc.toString(), station.getTransportMode(), false,
-                station.getColor(), world);
+        return createMarker(markerId, pos, stationName, desc.toString(), station.transportMode, false,
+                station.color, world);
     }
 
     private static MarkerOverlay createMarker(String markerId, BlockPos pos, String label, String title,
@@ -399,14 +441,18 @@ final class JourneyMapLandmarkManager {
     }
 
     private static String getTransportModeName(TransportMode transportMode) {
-        return transportMode.toString().toLowerCase(java.util.Locale.ROOT);
+        // MTR 3: transportMode is a public field that can be null on partially
+        // synced data - fall back to the train icons instead of failing
+        return (transportMode == null ? TransportMode.TRAIN : transportMode).toString()
+                .toLowerCase(java.util.Locale.ROOT);
     }
 
     private static String getMarkerId(NameColorDataBase data) {
         String type = (data instanceof Station) ? "station"
                 : (data instanceof Depot) ? "depot" : "platform";
-        return getTransportModeName(data.getTransportMode()) + "_" + type + "_"
-                + data.getHexId().toLowerCase();
+        // MTR 3: no getHexId(); the public id field is formatted by MtrCompat
+        return getTransportModeName(data.transportMode) + "_" + type + "_"
+                + MtrCompat.hexId(data.id);
     }
 
     private static boolean shouldBeFilteredOut(Station station, MTRDataSummary dataSummary) {
@@ -415,58 +461,35 @@ final class JourneyMapLandmarkManager {
     }
 
     /**
-     * Aggregate stations from BOTH the local streaming instance AND the
-     * dashboard instance (if the user opened it).
+     * MTR 3 keeps the client-side stations in the static {@code ClientData.STATIONS}
+     * field; MTR 4 aggregated a streaming instance and a dashboard instance here.
+     * The set is copied because MTR mutates it from its own tick handling.
      */
-    private static Set<Station> collectStations() {
-        Set<Station> allStations = new HashSet<>();
+    private static List<Station> collectStations() {
         try {
-            MinecraftClientData instance = MinecraftClientData.getInstance();
-            if (instance != null) {
-                allStations.addAll(instance.stations);
-            }
-            MinecraftClientData dashboard = MinecraftClientData.getDashboardInstance();
-            if (dashboard != null) {
-                allStations.addAll(dashboard.stations);
-            }
+            return new ArrayList<>(ClientData.STATIONS);
         } catch (Exception e) {
             MTRMap.LOGGER.error("[MTRMap] Error accessing MTR station datasets: ", e);
+            return new ArrayList<>();
         }
-        return allStations;
     }
 
-    private static Set<Depot> collectDepots() {
-        Set<Depot> allDepots = new HashSet<>();
+    private static List<Depot> collectDepots() {
         try {
-            MinecraftClientData instance = MinecraftClientData.getInstance();
-            if (instance != null) {
-                allDepots.addAll(instance.depots);
-            }
-            MinecraftClientData dashboard = MinecraftClientData.getDashboardInstance();
-            if (dashboard != null) {
-                allDepots.addAll(dashboard.depots);
-            }
+            return new ArrayList<>(ClientData.DEPOTS);
         } catch (Exception e) {
             MTRMap.LOGGER.error("[MTRMap] Error accessing MTR depot datasets: ", e);
+            return new ArrayList<>();
         }
-        return allDepots;
     }
 
-    private static Set<Route> collectRoutes() {
-        Set<Route> allRoutes = new HashSet<>();
+    private static List<Route> collectRoutes() {
         try {
-            MinecraftClientData instance = MinecraftClientData.getInstance();
-            if (instance != null) {
-                allRoutes.addAll(instance.routes);
-            }
-            MinecraftClientData dashboard = MinecraftClientData.getDashboardInstance();
-            if (dashboard != null) {
-                allRoutes.addAll(dashboard.routes);
-            }
+            return new ArrayList<>(ClientData.ROUTES);
         } catch (Exception e) {
             MTRMap.LOGGER.error("[MTRMap] Error accessing MTR route datasets: ", e);
+            return new ArrayList<>();
         }
-        return allRoutes;
     }
 
     /**

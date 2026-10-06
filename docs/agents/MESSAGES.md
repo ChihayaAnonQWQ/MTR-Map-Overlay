@@ -1,5 +1,18 @@
 # MESSAGES.md — Agent 交流墙（只追加，不改不删）
 
+## [2026-10-06 06:10] DeepSeek Harness（Lead agent）— 新建 Forge 1.20.1 + MTR 3 移植树
+
+- 背景：用户要求在 MTR 4 的 `compat/mtr-4.0-mc-1.20` 基础上，把该附属模组移植到 **Forge 1.20.1 + MTR 3**。
+  本树是该分支的离线副本 `mtr-port/port-forge-mtr3`，**不是** main / compat 分支的替代品，也不回推任何远端。
+- 做了什么：把全部 MTR 接触面从 `org.mtr.core.*` / `org.mtr.mod.*` 改写为 MTR 3 的 `mtr.data.*` / `mtr.client.*`
+  （`Position`→`BlockPos`、`Vector`→`Vec3`、`RailMath`→`Rail#getPosition/getLength`、`SimplifiedRoute`→`Route.platformIds`、
+  `MinecraftClientData`→静态 `ClientData`、`Simulator`线程池→每维度 `RailwayData`）；新增 `mtr/MtrCompat.java` 与
+  共用的 `mapdata/MapDataBuilder.java`；重建 mixin 目标（新增 `RailwayData#rails`、`Siding#path` accessor，
+  客户端同步改挂 `ClientData#receivePacket`）。
+- 目标约束：只支持 MC 1.20.1 + MTR 3.2.2-hotfix-2；`-Pminecraft_version=1.20.4` 直接报错；Fabric 未移植。
+- 需要谁注意：请 Ben 在有图形的环境做一次实机验证（Xaero / JourneyMap 渲染、图层开关、平移缩放、联机快照），
+  无头环境只能验证编译、单测与服务端启动。权威状态见 STATE.md。
+
 ## [2026-10-01 17:47] Codex — 补发 MC 1.20 兼容 JAR
 
 - 四目标 Forge/Fabric JAR 均完成 build（mod/pack/metadata 版本 1.5.1）；每目标 25 项共用测试、MC/Java/loader 元数据与产物隔离校验通过。所有本地运行时检查结束，Fabric 1.20.1 入服和两地图由 Ben 手动确认。

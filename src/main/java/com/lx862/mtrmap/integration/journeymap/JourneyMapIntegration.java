@@ -3,9 +3,9 @@ package com.lx862.mtrmap.integration.journeymap;
 import com.lx862.mtrmap.MTRMap;
 import com.lx862.mtrmap.config.MTRMapConfig;
 import com.lx862.mtrmap.mapdata.MapDataCache;
+import mtr.client.ClientData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.level.Level;
-import org.mtr.mod.client.MinecraftClientData;
 
 /**
  * Entry point for the JourneyMap landmark integration. This class contains NO
@@ -103,13 +103,10 @@ public final class JourneyMapIntegration {
         tickCounter = 0;
 
         try {
-            final MinecraftClientData clientData = MinecraftClientData.getInstance();
-            if (clientData == null) {
-                MTRMap.LOGGER.debug("[MTRMap] MTR client data not available yet, will retry...");
-                return;
-            }
-
-            JourneyMapLandmarkManager.syncLandmarks("scheduled sync", world, clientData);
+            // MTR 3: the client data cache is a static field on ClientData and is
+            // always available, so there is no "data not ready yet" state to wait
+            // for (MTR 4 had MinecraftClientData.getInstance(), which could be null)
+            JourneyMapLandmarkManager.syncLandmarks("scheduled sync", world, ClientData.DATA_CACHE);
             needsSync = false;
         } catch (NoClassDefFoundError e) {
             MTRMap.LOGGER.warn("[MTRMap] JourneyMap classes not available: {}", e.getMessage());

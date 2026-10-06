@@ -1,17 +1,10 @@
 package com.lx862.mtrmap.mapdata;
 
 import com.lx862.mtrmap.MTRMap;
-import org.mtr.core.data.Position;
-import org.mtr.core.data.Rail;
-import org.mtr.core.data.SimplifiedRoute;
-import org.mtr.core.data.SimplifiedRoutePlatform;
-import org.mtr.core.data.Platform;
-import org.mtr.core.data.Route;
-import org.mtr.core.data.Station;
-import org.mtr.core.data.Depot;
-import org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import org.mtr.mod.client.MinecraftClientData;
-import org.mtr.mod.data.VehicleExtension;
+import mtr.client.ClientData;
+import mtr.data.Route;
+import mtr.data.TrainClient;
+import mtr.path.PathData;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,19 +13,22 @@ import java.util.Map;
 
 /**
  * Central access point for map path-layer data, keyed by dimension id
- * (MTR world-id format, e.g. "minecraft/overworld").
+ * (the same "namespace/path" form the map integrations use, e.g.
+ * "minecraft/overworld").
  *
  * <p>Resolution order per dimension:</p>
  * <ol>
  *   <li>Server-synced full-network data ({@code SERVER_DATA}, filled by the
  *       network sync when the server runs this mod) - covers the whole
- *       network, Create-style. Route colors here are painted along MTR's own
- *       generated driving paths.</li>
+ *       network, Create-style.</li>
  *   <li>Fallback: whatever MTR has synced to the client
- *       ({@link MinecraftClientData}), which is limited to the area around
- *       the player (MTR only syncs data within render distance). Route colors
- *       come from running vehicles' real driving paths.</li>
+ *       ({@link mtr.client.ClientData}), which is limited to the area around
+ *       the player (MTR only syncs data within render distance).</li>
  * </ol>
+ *
+ * <p>MTR 3 exposes client data as static collections on {@code ClientData}
+ * (MTR 4 used a {@code MinecraftClientData} singleton plus a separate dashboard
+ * instance), so this class no longer has to aggregate two instances.</p>
  */
 public class MapDataCache {
 
@@ -64,11 +60,59 @@ public class MapDataCache {
 
     private static final DimensionData EMPTY = new DimensionData("", List.of(), List.of(), List.of(), 0);
 
-    private static final Object2ObjectOpenHashMap<String, DimensionData> SERVER_DATA = new Object2ObjectOpenHashMap<>();
+    private static final HashMap<String, DimensionData> SERVER_DATA = new HashMap<>();
     /** Bumped whenever MTR pushes new client data, invalidates the client-side cache. */
     private static volatile long clientDataVersion = 0;
     private static volatile DimensionData clientDataBuilt = null;
     private static volatile boolean clientDataReady = false;
+
+    /**
+     * Human readable cache state, surfaced by {@code /mtrmap status}. Kept free
+     * of Minecraft/MTR types so it is safe to call from anywhere.
+     */
+    public static List<String> describeState(String currentDimensionKey) {
+        final List<String> lines = new ArrayList<>();
+        synchronized (SERVER_DATA) {
+            if (SERVER_DATA.isEmpty()) {
+                lines.add("server snapshot: none received");
+            } else {
+                lines.add("server snapshot: " + SERVER_DATA.size() + " dimension(s)");
+                for (Map.Entry<String, DimensionData> entry : SERVER_DATA.entrySet()) {
+                    lines.add("  " + entry.getKey() + ": " + describe(entry.getValue()));
+                }
+            }
+        }
+
+        if (!clientDataReady) {
+            lines.add("client fallback: MTR client data not synced yet");
+        } else if (clientDataBuilt == null) {
+            lines.add("client fallback: synced, not built yet");
+        } else {
+            lines.add("client fallback: " + describe(clientDataBuilt));
+        }
+
+        if (currentDimensionKey == null) {
+            lines.add("current dimension: unknown (not in a world)");
+        } else {
+            lines.add("current dimension: " + currentDimensionKey
+                    + (hasServerData(currentDimensionKey) ? " -> using server snapshot" : " -> using client fallback"));
+        }
+        return lines;
+    }
+
+    private static String describe(DimensionData data) {
+        long colouredRoutes = 0;
+        for (MapRoute route : data.routes) {
+            if (!route.trackIds.isEmpty()) {
+                colouredRoutes++;
+            }
+        }
+        return data.routes.size() + " routes (" + colouredRoutes + " with track geometry), "
+                + data.tracks.size() + " tracks, " + data.landmarks.size() + " landmarks, version " + data.version;
+    }
+
+    private MapDataCache() {
+    }
 
     public static void onClientDataSynced() {
         clientDataVersion++;
@@ -137,173 +181,66 @@ public class MapDataCache {
     }
 
     private static DimensionData buildClientData(long version) {
-        final List<MapRoute> routes = new ArrayList<>();
-        final List<MapTrack> tracks = new ArrayList<>();
-        final List<MapLandmark> landmarks = new ArrayList<>();
-        final Map<String, MapTrack> sampledTracks = new HashMap<>();
+        final MapDataBuilder.Input input = new MapDataBuilder.Input();
+        try {
+            // Copy the static sets: MTR mutates them from its own tick/packet
+            // handling while the map may be rendering.
+            input.dataCache = ClientData.DATA_CACHE;
+            input.routes = new ArrayList<>(ClientData.ROUTES);
+            input.stations = new ArrayList<>(ClientData.STATIONS);
+            input.depots = new ArrayList<>(ClientData.DEPOTS);
+            input.rails = new HashMap<>(ClientData.RAILS);
+            input.realPaths = collectClientDrivingPaths();
+            input.fallbackPathfinding = true;
+        } catch (Throwable e) {
+            MTRMap.LOGGER.error("[MTRMap] Error accessing MTR client datasets", e);
+        }
 
         try {
-            // Aggregate both the live streaming instance and the dashboard instance,
-            // mirroring how both map overlays collect their fallback data.
-            final Map<Long, Platform> allPlatforms = new HashMap<>();
-            final List<SimplifiedRoute> allRoutes = new ArrayList<>();
-            final Map<String, Station> allStations = new java.util.LinkedHashMap<>();
-            final Map<String, Depot> allDepots = new java.util.LinkedHashMap<>();
-            try {
-                final MinecraftClientData instance = MinecraftClientData.getInstance();
-                if (instance != null) {
-                    allPlatforms.putAll(instance.platformIdMap);
-                    allRoutes.addAll(instance.simplifiedRoutes);
-                    instance.stations.forEach(station -> allStations.put(station.getHexId(), station));
-                    instance.depots.forEach(depot -> allDepots.put(depot.getHexId(), depot));
-                    collectClientTracks(instance, tracks, sampledTracks);
-                }
-                final MinecraftClientData dashboard = MinecraftClientData.getDashboardInstance();
-                if (dashboard != null) {
-                    allPlatforms.putAll(dashboard.platformIdMap);
-                    allRoutes.addAll(dashboard.simplifiedRoutes);
-                    dashboard.stations.forEach(station -> allStations.put(station.getHexId(), station));
-                    dashboard.depots.forEach(depot -> allDepots.put(depot.getHexId(), depot));
-                }
-            } catch (Throwable e) {
-                MTRMap.LOGGER.error("[MTRMap] Error accessing MTR client datasets", e);
-            }
-
-            // Pure-client fallback for route colors: running vehicles carry
-            // MTR's own real driving paths (immutablePath). Group them by
-            // route name/color so the map dyes the rails the trains use.
-            try {
-                final MinecraftClientData live = MinecraftClientData.getInstance();
-                if (live != null) {
-                    final Map<String, List<MapTrack>> vehicleTracks = new HashMap<>();
-                    final Map<String, java.util.Set<String>> vehicleRailIds = new HashMap<>();
-                    for (VehicleExtension vehicle : live.vehicles) {
-                        final String routeName = vehicle.vehicleExtraData.getThisRouteName();
-                        final int routeColor = vehicle.vehicleExtraData.getThisRouteColor();
-                        final String key = routeName + "#" + routeColor;
-                        final List<MapTrack> routeTracks = vehicleTracks.computeIfAbsent(key,
-                                k -> new ArrayList<>());
-                        for (org.mtr.core.data.PathData pathData : vehicle.vehicleExtraData.immutablePath) {
-                            final org.mtr.core.data.Rail rail = pathData.getRail();
-                            if (rail != null && vehicleRailIds.computeIfAbsent(key, ignored -> new java.util.HashSet<>())
-                                    .add(rail.getHexId())) {
-                                final MapTrack track = sampledTracks.get(rail.getHexId());
-                                if (track != null) {
-                                    routeTracks.add(track);
-                                }
-                            }
-                        }
-                    }
-                    for (Map.Entry<String, List<MapTrack>> entry : vehicleTracks.entrySet()) {
-                        final String key = entry.getKey();
-                        final int sep = key.lastIndexOf('#');
-                        routes.add(MapRoute.ofTracks("vehicle:" + key, key.substring(0, sep),
-                                Integer.parseInt(key.substring(sep + 1)), new ArrayList<>(), entry.getValue()));
-                    }
-                }
-            } catch (Throwable e) {
-                MTRMap.LOGGER.debug("[MTRMap] Failed to collect vehicle paths: {}", e.getMessage());
-            }
-
-            for (SimplifiedRoute route : allRoutes) {
-                try {
-                    final List<SimplifiedRoutePlatform> routePlatforms = route.getPlatforms();
-                    if (routePlatforms == null || routePlatforms.size() < 2) {
-                        continue;
-                    }
-
-                    final List<MapRoute.Stop> stops = new ArrayList<>(routePlatforms.size());
-                    boolean allStopsResolved = true;
-                    for (SimplifiedRoutePlatform routePlatform : routePlatforms) {
-                        final Platform platform = allPlatforms.get(routePlatform.getPlatformId());
-                        if (platform == null) {
-                            allStopsResolved = false;
-                            break;
-                        }
-                        final Position pos = platform.getMidPosition();
-                        stops.add(new MapRoute.Stop(pos.getX(), pos.getZ(),
-                                routePlatform.getStationName(), routePlatform.getDestination()));
-                    }
-
-                    if (allStopsResolved) {
-                        final boolean circular = route.getCircularState() == Route.CircularState.CLOCKWISE
-                                || route.getCircularState() == Route.CircularState.ANTICLOCKWISE;
-                        routes.add(new MapRoute(Long.toHexString(route.getId()), route.getName(), route.getColor(),
-                                circular, stops, List.of()));
-                    }
-                } catch (Throwable e) {
-                    MTRMap.LOGGER.debug("[MTRMap] Failed to build map data for route: {}", e.getMessage());
-                }
-            }
-
-            collectClientLandmarks(allStations.values(), allDepots.values(), allRoutes, landmarks);
+            final MapDataBuilder.Result result = MapDataBuilder.build(input);
+            return new DimensionData("", result.routes, result.tracks, result.landmarks, version);
         } catch (Throwable e) {
             // Never let data collection break the map render
             MTRMap.LOGGER.debug("[MTRMap] Error building client map data: {}", e.getMessage());
-        }
-
-        return new DimensionData("", routes, tracks, landmarks, version);
-    }
-
-    private static void collectClientLandmarks(Iterable<Station> stations, Iterable<Depot> depots,
-            List<SimplifiedRoute> routes, List<MapLandmark> landmarks) {
-        final Map<Long, List<String>> platformRoutes = new HashMap<>();
-        for (SimplifiedRoute route : routes) {
-            for (SimplifiedRoutePlatform platform : route.getPlatforms()) {
-                String label = route.getName();
-                if (platform.getDestination() != null && !platform.getDestination().isEmpty()) {
-                    label += "→" + platform.getDestination();
-                }
-                platformRoutes.computeIfAbsent(platform.getPlatformId(), ignored -> new ArrayList<>()).add(label);
-            }
-        }
-        for (Station station : stations) {
-            long totalY = 0;
-            int count = 0;
-            final java.util.Set<String> stationRoutes = new java.util.LinkedHashSet<>();
-            for (Platform platform : station.savedRails) {
-                final Position pos = platform.getMidPosition();
-                final List<String> labels = platformRoutes.getOrDefault(platform.getId(), List.of());
-                stationRoutes.addAll(labels);
-                totalY += (long) pos.getY();
-                count++;
-                final String platformName = platform.getName() == null || platform.getName().isEmpty()
-                        ? Long.toString(platform.getId()) : platform.getName();
-                landmarks.add(new MapLandmark("platform:" + platform.getHexId(), MapLandmark.Type.PLATFORM,
-                        (int) pos.getX(), (int) pos.getY(), (int) pos.getZ(), station.getName(), platformName,
-                        String.join(", ", new java.util.LinkedHashSet<>(labels)), !labels.isEmpty()));
-            }
-            final Position center = station.getCenter();
-            landmarks.add(new MapLandmark("station:" + station.getHexId(), MapLandmark.Type.STATION,
-                    (int) center.getX(), count == 0 ? (int) station.getMaxY() : (int) (totalY / count),
-                    (int) center.getZ(), station.getName(), station.getName(), String.join(", ", stationRoutes),
-                    !stationRoutes.isEmpty()));
-        }
-        for (Depot depot : depots) {
-            final Position center = depot.getCenter();
-            landmarks.add(new MapLandmark("depot:" + depot.getHexId(), MapLandmark.Type.DEPOT,
-                    (int) center.getX(), (int) depot.getMaxY(), (int) center.getZ(), depot.getName(), "D", "", true));
+            return new DimensionData("", List.of(), List.of(), List.of(), version);
         }
     }
 
     /**
-     * Sample the actual rail geometry from MTR's client-side rail set into
-     * polylines. Rails follow real curves (arcs, slopes), so each rail is
-     * sampled along its length via {@link RailMath#getPosition(double, boolean)}.
+     * Pure-client source of MTR's real driving paths: every running train
+     * carries the path MTR generated for it, so the rails a train is actually
+     * using can be dyed with its route's colour.
      */
-    private static void collectClientTracks(MinecraftClientData instance, List<MapTrack> tracks,
-            Map<String, MapTrack> sampledTracks) {
-        for (Rail rail : instance.rails) {
-            final String railId = rail.getHexId();
-            if (sampledTracks.containsKey(railId)) {
-                continue;
+    private static List<MapDataBuilder.RealPath> collectClientDrivingPaths() {
+        final List<MapDataBuilder.RealPath> realPaths = new ArrayList<>();
+        try {
+            for (TrainClient train : new ArrayList<>(ClientData.TRAINS)) {
+                final List<PathData> path = train.path;
+                if (path == null || path.isEmpty()) {
+                    continue;
+                }
+                final List<Route> candidates = new ArrayList<>();
+                final Route thisRoute = train.getThisRoute();
+                if (thisRoute != null) {
+                    candidates.add(thisRoute);
+                }
+                for (Long routeId : train.getRouteIds()) {
+                    final Route route = routeId == null || ClientData.DATA_CACHE == null ? null
+                            : ClientData.DATA_CACHE.routeIdMap.get(routeId);
+                    if (route != null && !candidates.contains(route)) {
+                        candidates.add(route);
+                    }
+                }
+                if (candidates.isEmpty()) {
+                    continue;
+                }
+                final Route primary = candidates.get(0);
+                realPaths.add(new MapDataBuilder.RealPath(candidates, "train:" + train.trainId,
+                        primary.name, primary.color, path));
             }
-            final List<double[]> points = TrackSampler.sample(rail);
-            if (points != null) {
-                final MapTrack track = new MapTrack(railId, points);
-                tracks.add(track);
-                sampledTracks.put(railId, track);
-            }
+        } catch (Throwable e) {
+            MTRMap.LOGGER.debug("[MTRMap] Failed to collect vehicle paths: {}", e.getMessage());
         }
+        return realPaths;
     }
 }
