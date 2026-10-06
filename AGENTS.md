@@ -65,6 +65,8 @@
 - **本分支产生的问题一律不得反馈给原项目制作组**（AmberFrost / BenLi06 / teamCreating）：不要向上游提交
   与本移植版相关的 issue、PR、崩溃日志或在他们的讨论区提问；这类问题只记录在本仓库的 issue 区。
   README（中英文）与 `mods.toml` 的 `credits` 必须始终保留原模组作者信息。
+- **贡献者名单以 [`CONTRIBUTORS.md`](CONTRIBUTORS.md) 为准**（GitHub 的贡献者图表只统计提交，且受时间/分支筛选影响，
+  无法显示没有 GitHub 账号的人，如 DeepSeek）。贡献者发生变化时（新增协作、新增移植者），必须同步更新该文件。
 
 ## 5. 事故记录（上游，为什么有这份协议）
 

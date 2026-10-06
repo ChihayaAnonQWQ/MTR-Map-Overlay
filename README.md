@@ -175,6 +175,9 @@ in [MTR3-PORT-REPORT.md](MTR3-PORT-REPORT.md) and in the commit history of this 
 modified version), keep [`LICENSE`](LICENSE) and this attribution section, and make clear that it is a port rather than the
 original release.
 
+The complete credit list — including people GitHub's contributor graph cannot show — is in
+[`CONTRIBUTORS.md`](CONTRIBUTORS.md).
+
 **Issues caused by this branch must not be filed with the original project** (see the notice at the top of this README):
 use this repository's own issue tracker. Upstream authors: **AmberFrost** (original copyright) and
 **BenLi06** / [teamCreating](https://github.com/teamCreating).

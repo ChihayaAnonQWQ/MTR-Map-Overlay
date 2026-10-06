@@ -138,5 +138,7 @@
 改动记录在 [MTR3-PORT-REPORT.md](MTR3-PORT-REPORT.md) 与本分支的提交历史中。
 如果你再分发本移植版（或修改版），请保留 [`LICENSE`](LICENSE) 与本署名段落，并说明这是**移植版**而非原版发布。
 
+> 完整贡献者名单（含 GitHub 贡献者图表无法显示的人）见 [`CONTRIBUTORS.md`](CONTRIBUTORS.md)。
+
 **本分支产生的问题请勿反馈给原项目制作组**（见文首声明），请提到本仓库的 issue 区。
 上游作者：**AmberFrost**（原始版权）与 **BenLi06** / [teamCreating](https://github.com/teamCreating)。
