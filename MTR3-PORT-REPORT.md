@@ -5,8 +5,8 @@
 - 目标用户请求：把 `teamCreating/MTR-Map-Overlay` 的 **Forge / MTR 4** 版本（分支 `compat/mtr-4.0-mc-1.20`）
   移植到 **Forge 1.20.1 + MTR 3**。
 - 本目录：`mtr-port/port-forge-mtr3`（上游分支的离线副本 + 移植改动）。上游快照保留在 `mtr-port/src4`，未做任何修改，可随时对照。
-- 结论：**已完成并通过全部无头验证**（编译、30 项单测、服务端启动冒烟、mixin 应用、测试世界数据生成）；
-  **未做**图形环境下的实机目视验证（本机无图形会话），也未移植 Fabric 目标与 MC 1.20.4 目标。
+- 结论：**已完成并通过全部无头验证 + 实机验证**（编译、36 项单测、服务端启动冒烟、mixin 应用、测试世界数据生成、
+  **Xaero 世界地图实机图形验证**、**跨机联机快照验证**）；**未做** JourneyMap 实机目视（测试整合包未安装 JourneyMap），也未移植 Fabric 目标与 MC 1.20.4 目标。
 
 ---
 
@@ -75,20 +75,23 @@ MTR 4 与 MTR 3 是两套数据模型，不是版本号差异：
 
 ---
 
-## 4. 验证证据（全部在本机实跑）
+## 4. 验证证据（无头部分在本机实跑；实机与跨机部分见 §4.4）
 
-| 项目 | 命令 | 结果 |
+| 项目 | 命令 / 方式 | 结果 |
 | --- | --- | --- |
 | 主源码编译 | `gradlew compileJava` | BUILD SUCCESSFUL（仅上游既有 Forge 47 弃用告警） |
-| 单元测试 | `gradlew build` | **30 项通过 / 0 失败 / 1 跳过**（跳过项为按设计关闭的测试世界生成器） |
-| 产物 | `gradlew build` | `build/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.1-mtr3-1.5.1.jar`（260,962 字节，Java 17） |
-| 服务端冒烟 | `gradlew runServer -PmtrmapRuntimeTest -PmtrmapServerOnly` | MTR 3.2.2-hotfix-2 + Architectury 9.2.14 + 本模组均加载，`Done (11.658s)!`，无异常 |
-| Mixin 应用 | 同上 + `-Dmixin.debug.export=true` | 见 §4.1 |
+| 单元测试 | `gradlew clean build` | **36 项通过 / 0 失败 / 1 项按设计跳过**（跳过项为需显式开启的存档重放） |
+| 产物 | `gradlew clean build` | `build/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.1-mtr3-1.5.2.jar`（265,392 字节，Java 17） |
+| 服务端冒烟 | `gradlew runServer -PmtrmapRuntimeTest -PmtrmapServerOnly` | MTR 3.2.2-hotfix-2 + Architectury 9.2.14 + 本模组均加载，`Done (...)`，无异常 |
+| Mixin 应用 | 同上 + `-Dmixin.debug.export=true` | 见 §4.1：转换后的 `RailwayData`/`Siding` 实现本模组 accessor 接口 |
 | **端到端快照采集** | 见 §4.3（临时自检钩子，已删除） | 服务端加载生成数据后，采集出 3 线路 / 6 轨道 / 7 地标 / 1986 字节快照 |
-| 测试世界生成 | `gradlew test -PmtrmapGenerateTestWorld=true --tests '*TestWorldGeneratorTest*'` | 通过；按 MTR 3 真实存档布局写出 20 个数据文件（见 §4.2） |
-| 依赖区间语义 | `DependencyRangeTest`（用 Forge 同款 Maven `VersionRange`） | **4 项通过**：`[1.45.0,)` 拒绝 1.44.2（复现线上加载失败）、`[1.40.0,)` 接受 1.40.11/1.44.2/1.45.0/1.47.0、JourneyMap 区间接受 6.0.6 拒绝 5.9.18、MTR 区间接受官方 3.2.2 与 fork 3.6.3 并拒绝 MTR 4 |
+| **真实存档离线重放** | `gradlew test "-Dmtrmap.replayDir=<world>/mtr/minecraft/overworld"` | 2006 轨道 / 19 线路 → **78 段彩色路段全部来自 MTR 真实行驶路径**，`unroutable=0`，261 地标 |
+| 测试世界生成 | `gradlew test -PmtrmapGenerateTestWorld=true` | 通过；按 MTR 3 真实存档布局写出 20 个数据文件（见 §4.2） |
+| 依赖区间语义 | `DependencyRangeTest`（Forge 同款 Maven `VersionRange`） | **4 项通过**：复现 `[1.45.0,)` 拒绝 1.44.2 的线上加载失败；放宽后的区间接受 1.40.11/1.44.2/1.45.0/1.47.0 与 JourneyMap 6.0.6、拒绝 JourneyMap 5.9.18 |
 | Xaero API 逐版本核对 | `javap` 对比 1.40.11 / 1.44.2 / 1.45.0 | `GuiMap.cameraX/cameraZ/scale/mapProcessor`、`m_88315_`/`m_6375_`、`MapProcessor.getMapWorld` → `MapWorld.getCurrentDimension` → `MapDimension.getDimId` **三版本完全一致**，故编译依赖降到最低支持版 1.40.11 |
-| **Yomi fork（3.6.3）兼容性** | 63 项 `javap` 符号对比 + `gradlew test -PmtrTestCoordinate=maven.modrinth:ymtr:1.20.1-3.6.3` | 与官方 3.2.2 的 API **零差异**；**34 项测试在 fork 上同样全绿**（fork 的 deobf jar 已确认被解析使用） |
+| **Yomi fork（3.6.3）兼容性** | 63 项 `javap` 符号对比 + `gradlew test -PmtrTestCoordinate=maven.modrinth:ymtr:1.20.1-3.6.3` | 与官方 3.2.2 的 API **零差异**；**36 项测试在 fork 上同样全绿**（fork 的 deobf jar 已确认被解析使用） |
+| **实机图形验证** | Forge 1.20.1 + Yomi MTR 3.6.3 + Xaero 世界地图 1.44.2 | 见 §4.4：彩色线路带 / 轨道层 / 站点图标 / 图层开关 / 平移缩放全部正常 |
+| **跨机联机快照** | 客户端与专用服务端**分属不同机器** | 见 §4.4：探测 → 采集 → 分块 → 重组 → 渲染整条链路成功 |
 | 关键几何行为 | 临时探针测试（已删除） | MTR 3 直线轨 `E→W` 有效、`E→E` 无效；`getPosition(0)` 返回方块中心坐标（0.5 偏移）——据此确定过滤条件与朝向判断 |
 
 ### 4.1 运行时验证要点
@@ -96,7 +99,16 @@ MTR 4 与 MTR 3 是两套数据模型，不是版本号差异：
 - 服务端日志确认：`mtr:` 全部数据包注册、Architectury 注册、本模组 `[MTR Map Overlay] ... >w<`、`Done (...)`。
 - `RailwayDataAccessorMixin` / `SidingAccessorMixin` 属于 common（`mixins`）列表，服务端加载
   `mtr.data.RailwayData` / `mtr.data.Siding` 时即应用；字段名写错会在类加载时抛错（服务端已正常启动）。
-- `ClientDataSyncMixin` 属 client 列表，需图形客户端才会应用，本次**未在实机验证**（见 §6）。
+- `ClientDataSyncMixin` 属 client 列表，随客户端加载 `mtr.client.ClientData` 时应用；其**单独作用**
+  （服务端未装模组时的半径内客户端回退刷新）本次未单独实机验证（见 §6）。
+
+### 4.4 实机与跨机验证（2026-10-06 完成）
+
+| 项目 | 环境 | 结果 |
+| --- | --- | --- |
+| **Xaero 世界地图实机渲染** | Forge 1.20.1 + MTR 3（Yomi fork `1.20.1-3.6.3`）+ Xaero 世界地图 1.44.2，城市存档（2006 轨道 / 17 线路 / 261 地标） | 彩色线路带、灰色实体轨道层、站点/站台图标、悬浮提示（列出停靠线路）、ROUTES/TRACKS 开关、平移缩放**全部正常**；客户 `ClientData` 与 `MapDataCache` 数据一致，无渲染异常日志。效果图见 README（存档来自 bilibili：Dev通道） |
+| **跨机联机快照** | 客户端与专用服务端**分属不同机器**（真实网络链路，非本机回路） | 客户端探测 → 服务端逐维度采集 → 分块发送 → 客户端重组 → 地图渲染整条链路成功；快照含 41 条路段（40 条来自 MTR 真实行驶路径）、2006 条轨道、261 个地标 |
+| 客户端 mixin 应用 | 同上客户端 | `ClientDataSyncMixin` 随客户端加载应用（未单独导出验证其回退刷新效果） |
 
 ### 4.2 生成的 MTR 3 存档布局（`run/saves/TestWorld`）
 
@@ -155,16 +167,15 @@ SELFTEST dim=minecraft/the_end    routes=0 tracks=0 landmarks=0 bytes=43
 
 ---
 
-## 6. 未验证与风险
+## 6. 限制与仍未验证的部分
 
-- **实机图形验证未做**：Xaero / JourneyMap 的地图渲染、图层开关、平移缩放、JourneyMap 地标与工具栏，
-  需要在有 OpenGL 的环境里人工确认（本机只能跑到无头服务端）。
-- **客户端 mixin 未实测**：`ClientDataSyncMixin`（`ClientData#receivePacket` TAIL）只在客户端加载时应用；
-  它若未命中，表现是"地图不随 MTR 数据刷新"，不会崩溃。
-- **联机快照未跨机验证**：服务端采集逻辑已按 MTR 3 语义重写并编译/启动通过，但"客户端请求 → 服务端分块发送
-  → 客户端重组"这条链路需要一台真实客户端连入才能完整验证。
-- **`DataCache.sync()` 调用**：服务端快照前会显式调用一次（保证 `platformIdMap`/`platformIdToStation` 是当前状态），
-  代价 O(网络规模)，随探测式热更触发，未在高负载服务器上压测。
+- **Xaero 世界地图已实机验证**（见 §4.4，效果图见 README）。**JourneyMap 未做实机目视**：测试整合包未安装 JourneyMap，
+  该集成只完成了 v2 API 编译验证与运行时代码路径审查（`JourneyMapIntegration` 会在未安装时自动关闭）。
+- **纯客户端回退路径未单独实机验证**：服务端未装本模组时，地图依赖 `ClientDataSyncMixin` 触发的半径内客户端数据；
+  该路径有单元测试与代码审查覆盖，但没有在"服务端无模组"的实机上单独跑过。它若未命中只会表现为"数据不刷新"，不会崩溃。
+- **跨机联机快照已验证**（见 §4.4）；未做的是**高负载压测**：快照前会显式调用一次 `DataCache.sync()`
+  （保证 `platformIdMap`/`platformIdToStation` 是当前状态），代价 O(网络规模)，随探测式热更触发，
+  在超大网络 + 多客户端并发请求下未做压力测试。
 - **MTR 3 版本锁定**：针对官方 `1.20.1-3.2.2-hotfix-2` 构建与验证；**另已对第三方 fork（Yomi's MTR `1.20.1-3.6.3`）做过 API 差分与整套单测验证**（63 项符号零差异、34 项测试全绿），
   `mods.toml` 的区间 `[1.20.1-3.2.2-hotfix-2,1.20.1-4.0.0)` 同时接受两者并拒绝 MTR 4。
   可在其它 MTR 3 构建上复跑：`gradlew test -PmtrTestCoordinate=maven.modrinth:<project>:<version>`。

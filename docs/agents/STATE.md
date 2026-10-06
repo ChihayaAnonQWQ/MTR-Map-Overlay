@@ -76,8 +76,11 @@
   Maven `VersionRange` 固化这些断言（共 34 项测试）。
 - **第三方 fork 兼容**：对「Yomi's MTR 1.20.1-3.6.3」逐符号对比（63 项零差异）并用 fork 作为测试依赖跑完整套单测
   （`gradlew test -PmtrTestCoordinate=maven.modrinth:ymtr:1.20.1-3.6.3`）——**34 项全绿**。
-- **未验证**：游戏内实机（Xaero / JourneyMap 渲染、开关、平移缩放）、客户端 mixin 实机应用、跨机联机快照。
-  本树无图形环境，需人工确认。
+- **已实机验证**（2026-10-06，见 `MTR3-PORT-REPORT.md` §4.4）：Xaero 世界地图渲染（彩色线路带 / 轨道层 / 站点图标 /
+  图层开关 / 平移缩放）在 Forge 1.20.1 + Yomi MTR 3.6.3 + Xaero 1.44.2 上全部正常（效果图见 README，
+  存档来自 bilibili：Dev通道）；**跨机联机快照**（客户端与专用服务端分属不同机器）整链路成功。
+- **仍未验证**：JourneyMap 实机目视（测试整合包未安装 JourneyMap，仅有 v2 API 编译验证与代码路径审查）、
+  服务端未装模组时的"纯客户端回退"路径、超大网络 + 多客户端并发的高负载压测。
 
 ## 限制
 

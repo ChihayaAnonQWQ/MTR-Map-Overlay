@@ -142,6 +142,10 @@ Useful diagnostics (all opt-in):
   261 landmarks, 2562 siding-path entries aligned to the drawn track layer).
 * Live game on the same world (Forge 1.20.1 + MTR 3.6.3 fork + Xaero's World Map 1.44.2): `41 routes (40 from MTR driving
   paths, 1 snapped, 0 unroutable)`, 2006 rails, 261 landmarks, 411 KB snapshot — and the coloured routes render on the map.
+* **In-game rendering confirmed** on Xaero's World Map: coloured route ribbons, the rail layer, station/platform icons, the
+  ROUTES/TRACKS toggles and pan/zoom all behave correctly (screenshot above; world/save from Bilibili: Dev通道).
+* **Whole-network snapshot confirmed across machines**: with the client and a dedicated server on *different* hosts, the
+  probe → per-dimension collection → chunked transfer → client reassembly → map render chain completed successfully.
 
 ## Known limitations
 
@@ -154,6 +158,8 @@ Useful diagnostics (all opt-in):
   so use it for map-layer checks — or place a few rail blocks in game for a purely visual run.
 * Xaero's World Map is closed source, so the overlay hooks into `xaero.map.gui.GuiMap` through mixins; a future Xaero release
   that renames those members would disable the layer (the mixins are `require = 0` and fail soft).
+* JourneyMap support is compile-verified and code-audited but **not visually checked in game** (the test pack runs Xaero), and
+  the pure client-side fallback (a server *without* this mod) has not been exercised on a real server.
 * Fabric and upstream's 1.20.4 target are **not** ported.
 
 See [MTR3-PORT-REPORT.md](MTR3-PORT-REPORT.md) for the full mapping table, the change list and the raw evidence.
