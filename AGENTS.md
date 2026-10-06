@@ -72,3 +72,17 @@
   （删除 network/ 包、neoforge.mods.toml、路径层渲染器，共 -1574 行），随后自行 `git reset` 丢弃。
   HEAD 未受损，但暴露了"agent 凭过时记忆行动"的风险。此后任何 agent 若认为项目"坏了/回退了"，
   第一反应应是核对 `STATE.md` 与 `git log`，而不是动手恢复。
+
+## 6. 禁止对本分支使用 GitHub 的「Sync fork」（2026-10-06 事故）
+
+- GitHub 网页上的 **Sync fork → Update branch / Discard commits** 都是以**上游默认分支（`main`）**为目标的
+  合并或**强制重置**。2026-10-06 在本分支误点后，`mtr3-forge-1.20.1` 被直接重置为上游 `main`
+  （MTR 4 / NeoForge 代码），**移植内容从分支上整体消失**。
+- 恢复手段（均已具备，恢复时不要慌，先确认内容是否还在）：
+  1. **备份分支**：`backup/mtr3-forge-1.20.1`（指向最后一次良好提交）；
+  2. **Release tag**：`mtr3-v1.5.2`（tag 不会被同步操作移动）；
+  3. **本地副本**：`github-upload/`（全部源文件）+ `logs/push-state.json`（每个文件的 blob SHA）；
+  4. **工具**：`tools/github_ref.py move --ref mtr3-forge-1.20.1 --sha <良好提交> --force`
+     （或 `create/move/default/delete/list/info`），推送用 `tools/push_upload.py`（支持 `--exclusive`
+     让分支内容精确等于本树、`--message-file` 自定义提交信息）。
+- **要同步上游时，只在你 fork 的 `main` 分支上操作**，绝不要在这个移植分支上操作。
