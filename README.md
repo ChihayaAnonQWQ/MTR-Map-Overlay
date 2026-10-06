@@ -28,6 +28,12 @@
 MTR Map Overlay is an add-on for [Minecraft Transit Railway (MTR)](https://github.com/Minecraft-Transit-Railway/Minecraft-Transit-Railway).
 It reads MTR's network data and draws it on **Xaero's World Map** and **JourneyMap**. It does not depend on MTR Surveyor's map.
 
+![MTR Map Overlay on Xaero's World Map: coloured MTR route ribbons, the physical rail layer and map-only station icons](docs/images/in-game-xaero-world-map.jpg)
+
+*Live check on Forge 1.20.1 with **MTR 3** (Yomi's fork `1.20.1-3.6.3`) and **Xaero's World Map 1.44.2**: coloured route
+ribbons, the grey physical-rail layer and map-only station icons, with the hover tooltip listing every line calling at
+李子坝 | Liziba. **The world/save in this screenshot is from Bilibili: Dev通道** (效果图存档来自 bilibili：Dev通道).*
+
 ## What this port changes
 
 **The MTR 4 → MTR 3 port in this branch was carried out by [DeepSeek](https://www.deepseek.com/) (DeepSeek Harness agent)

@@ -19,6 +19,12 @@
 
 英文说明（更详细）见 [README.md](README.md)；完整移植报告见 [MTR3-PORT-REPORT.md](MTR3-PORT-REPORT.md)。
 
+![MTR Map Overlay 在 Xaero 世界地图上的效果：MTR 线路彩色带、实体轨道层与地图专用站点图标](docs/images/in-game-xaero-world-map.jpg)
+
+*Forge 1.20.1 + **MTR 3**（Yomi fork `1.20.1-3.6.3`）+ **Xaero 世界地图 1.44.2** 的实机效果：
+彩色线路带、灰色实体轨道层与地图专用站点图标；悬浮提示列出了停靠「李子坝 | Liziba」的全部线路。
+**效果图存档来自 bilibili：Dev通道**。*
+
 ## 支持版本
 
 | 组件 | 要求 |
