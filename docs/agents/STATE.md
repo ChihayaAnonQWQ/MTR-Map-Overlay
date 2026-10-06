@@ -1,10 +1,11 @@
 # STATE.md — MTR 3 移植树权威状态
 
-- 最后更新：2026-10-06 06:00，操作者：DeepSeek Harness（Lead agent）。
+- 最后更新：2026-10-06 13:4x，移植者：**DeepSeek**（DeepSeek Harness agent）。
 - 来源：`compat/mtr-4.0-mc-1.20` 分支（MTR 4.0.5 / MC 1.20.1 + 1.20.4 / Forge + Fabric，v1.5.1）的**离线副本**，
   本次只做一件事：把 Forge 1.20.1 目标从 **MTR 4** 迁到 **MTR 3**。
-- 目录：`mtr-port/port-forge-mtr3`（本树）；原始兼容分支快照保留在 `mtr-port/src4`，仅作对照，未修改。
-- 版本：**v1.5.1**（未改）；mod ID `mtrmap`；包 `com.lx862.mtrmap`；客户端命令 `/mtrmap`。
+- 目录：本仓库（原 `mtr-port/port-forge-mtr3` 上传为分支 `mtr3-forge-1.20.1`）；上游兼容分支快照保留作对照，未修改。
+- 版本：**v1.5.2**（MTR 3 移植发布版：含移植本体 + 两个数据层修复，相对上游 v1.5.1 为 patch +1）；
+  mod ID `mtrmap`；包 `com.lx862.mtrmap`；客户端命令 `/mtrmap`。
 
 ## 平台与依赖（本树）
 
@@ -60,7 +61,7 @@
 
 - `gradlew compileJava`：**通过**（仅剩上游既有的 Forge 47 弃用告警）。
 - `gradlew clean build`：**通过**，30 项单测全绿、1 项（测试世界生成器）按设计跳过；
-  产物 `build/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.1-mtr3-1.5.1.jar`（约 261 KB，Java 17）。
+  产物 `build/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.1-mtr3-1.5.2.jar`（约 265 KB，Java 17）。
 - `-PmtrmapGenerateTestWorld=true` 生成器：**通过**，按 MTR 3 真实存档布局写出
   `<world>/mtr/minecraft/overworld/{stations,platforms,sidings,routes,depots,rails}/…` + 空的 `data/mtr_train_data.dat`。
 - 服务端冒烟（MTR 3.2.2 + Architectury 9.2.14）：**Done**，模组加载正常；
