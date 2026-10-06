@@ -200,5 +200,9 @@ cd mtr-port\port-forge-mtr3
 .\gradlew.bat runClient -PmtrmapRuntimeTest                        # 有图形环境时做目视验证
 ```
 
-产物：`build/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.1-mtr3-1.5.1.jar`
-（mod 版本沿用 1.5.1，与上游兼容分支一致；文件名以 `-mtr3-` 区分于 MTR 4 产物。）
+产物：`build/libs/CRTools-MTR-Map-Overlay-forge-mc1.20.1-mtr3-1.5.2.jar`（265,392 字节）
+（mod 版本 **1.5.2**：相对上游兼容分支 v1.5.1 按 patch +1；文件名以 `-mtr3-` 区分于 MTR 4 产物。
+该 jar 已作为 Release 附件发布，见下。）
+
+发布：<https://github.com/ChihayaAnonQWQ/MTR-Map-Overlay/releases/tag/mtr3-v1.5.2>
+（SHA-256 `745772dfa39bfd2bc3a79b5d7461f75837f0524764f332d52df3e2bfaf790e39`）

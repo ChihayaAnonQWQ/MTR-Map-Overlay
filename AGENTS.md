@@ -9,7 +9,8 @@
 本仓库是 [MTR Map Overlay](https://github.com/teamCreating/MTR-Map-Overlay) 的**非官方 MTR 3 移植分支**，
 **移植工作由 [DeepSeek](https://www.deepseek.com/)（DeepSeek Harness agent）于 2026-10-06 完成**：
 
-- **平台：Forge 1.20.1（47.x）+ MTR 3.2.x**，mod ID 仍为 `mtrmap`，版本沿用上游兼容分支的 `1.5.1`。
+- **平台：Forge 1.20.1（47.x）+ MTR 3.2.x**，mod ID 仍为 `mtrmap`，当前版本 **1.5.2**
+  （上游兼容分支为 v1.5.1，本分支按 patch +1 递增）。
 - 上游的平台（NeoForge 1.21.1 + MTR 4.1.x、以及兼容分支的 MTR 4.0.5 / MC 1.20.4）**不属于本分支**。
   本分支已把 MC 1.20.4 目标改为主动报错，且 **Fabric 未移植**（`fabric/` 目录仍是上游 MTR 4 代码，不参与本树构建）。
 - **禁止把 MTR 4 的代码回退进本分支**：MTR 4 使用 `org.mtr.core.*` 数据模型，与本分支的 `mtr.data.*` 实现不兼容；
